@@ -1,106 +1,123 @@
-# Manual del alumno — M1.3 · Las propiedades F.I.R.S.T. de un buen test
+# Manual del alumno — M2.1 · Definir qué testear
 
-Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: qué hace que un test
-concreto sea **bueno**, más allá de tenerlo en el nivel correcto de la pirámide.
+Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: cómo mirar un sistema y
+decidir, con criterio, qué merece un test y qué es ruido.
 
-Tiempo de lectura: ~10 min. Submódulo M1.3 (Fundamentos), cierra el Módulo 1. Rama **conceptual**:
-aquí no se escribe código de test; se entrena el olfato para reconocer un test que te va a dar guerra.
+Tiempo de lectura: ~12 min. Submódulo M2.1 (Estrategia y Cobertura). Rama **conceptual**: aquí no se
+escribe código de test todavía —las técnicas para diseñar los casos son M2.2—; aquí se decide el *qué*.
 
 ---
 
 ## 1. La idea en una frase
 
-Un test que tarda, depende de otros o falla según el día no te protege: **te entrena para ignorar
-los rojos.** Y un solo test así contamina la confianza en todos los demás.
+**Testear de más cuesta tanto como testear de menos.** El oficio está en cubrir lo que puede romperse
+de verdad y dejar fuera lo que no aporta señal.
+
+Testear de menos deja agujeros, eso es obvio. Pero cada test que no aporta señal —que nunca va a
+fallar por un bug real— hay que mantenerlo, ralentiza la suite y, cuando se rompe por un cambio
+legítimo, te hace perder una mañana investigando un falso problema. Una suite hinchada no es más
+segura; es más lenta y más molesta, y acaba en el mismo sitio que una vacía: nadie le hace caso.
 
 ---
 
-## 2. El problema real: "ese test falla a veces, dale otra vez"
+## 2. El gancho: el 80% que no protege
 
-Ya sabes repartir los tests en la pirámide. Pero puedes tener la forma perfecta y, dentro, tests
-malos. Y un test malo es peor que no tener test, porque ocupa, da falsa sensación de seguridad y, lo
-grave, te enseña a desconfiar.
+Una conversación que se repite: el jefe técnico vuelve de una charla y dice "quiero un 80% de
+cobertura para final de trimestre". Tres meses después tienen su 80%… y siguen teniendo bugs en
+producción.
 
-El caso clásico: un equipo tiene un test que, de vez en cuando, falla. No siempre. Nadie sabe por qué
-y nadie tiene tiempo de averiguarlo, así que se instala la frase más cara de la profesión: *"ese test
-falla a veces, no le hagas caso, dale otra vez"*. Y le dan otra vez, y pasa, y a producción.
-
-El problema no es que ese test sea inútil. Es que ha entrenado al equipo entero a ignorar un rojo. Y
-el día que el rojo sea de verdad, la reacción aprendida será la misma. El test malo contamina la
-confianza en todos los demás.
-
-Para que eso no pase, hay cinco propiedades que cumple un test sano. Alguien las juntó en un acrónimo
-que se queda: **FIRST**.
+¿Qué pasó? Que nadie hizo la pregunta de verdad. No es "¿cuánto testeamos?", es "**¿qué** testeamos?".
+Para llegar al número, el equipo testeó lo fácil —getters, constructores, métodos de tres líneas— y la
+regla que movía dinero (el cálculo de comisiones con sus seis casos especiales) seguía sin un test,
+porque era la parte difícil. Optimizaron el número, no la seguridad. Y un número que no se corresponde
+con la seguridad real es peor que no tener número: da tranquilidad sin dar protección.
 
 ---
 
-## 3. FIRST, de un vistazo
+## 3. Una casa, unos detectores de humo
 
-No es una checklist que repases con bolígrafo: es una forma de *oler* cuándo un test te va a dar
-problemas. Cuando uno te moleste, casi siempre incumple una de estas cinco, y tener los nombres te da
-el vocabulario para diagnosticarlo.
+Imagina que tienes que decidir dónde pones detectores de humo en una casa. No pones uno en cada metro
+cuadrado —carísimo, y saltarían falsas alarmas cada vez que fríes un huevo, hasta que los desconectas
+todos—. Ni pones cero. Piensas en dos cosas a la vez: **¿dónde es más probable que empiece un fuego?**
+(la cocina, el cuadro eléctrico) y **¿dónde sería más catastrófico que pasara desapercibido?** (los
+dormitorios). Los pones donde esas dos preguntas se cruzan.
+
+Decidir qué testear es exactamente eso. Tu código es la casa; los tests, los detectores. No los pones
+en todas partes (la suite hinchada que nadie mira) ni en ninguna (el proyecto sin red). Los pones
+donde es probable que algo se rompa **y** donde, si se rompe, duele.
+
+---
+
+## 4. Lo que casi siempre se testea
+
+- **Lógica de negocio.** Las reglas que definen qué hace tu aplicación y por las que alguien paga. En
+  VentasShop, la cocina es el `CalculadoraDescuentos` (tramos por volumen, bonus por tipo de cliente,
+  tope del 15%). Si falla, la empresa cobra de más o de menos a clientes reales todos los días.
+- **Casos de borde.** Los bugs casi nunca están en el centro, están en los bordes: el valor límite
+  exacto, el cero, el campo vacío, el `null`, la colección sin elementos. En VentasShop, el borde de
+  `Cantidad` es el cero (¿`< 0` o `<= 0`?), y el de `Dinero` es sumar dos monedas distintas.
+- **Las dos caras: happy path y error paths.** En producción los usuarios no leen el guion. El camino
+  feliz (un pedido correcto se paga) y el de error (pagar un pedido sin líneas lanza una excepción de
+  dominio, BR-07) se testean los dos. Los errores *de dominio* —los que tu código lanza a propósito—
+  son parte del contrato tanto como el camino feliz.
+
+La pregunta que decide: *si esto se equivoca, ¿qué pasa?* Si la respuesta es "perdemos dinero" o "el
+cliente se va", tienes un candidato número uno. Si es "no se entera nadie", probablemente no.
+
+---
+
+## 5. Lo que NO se testea (aquí se nota el criterio)
+
+Cuatro familias que, por defecto, no merecen un test propio:
+
+1. **Getters/setters y código sin lógica.** Testear que C# sabe asignar una propiedad no caza ningún
+   bug; solo sube el porcentaje. (Si la propiedad tiene lógica, ya es lógica de negocio y vuelve a la
+   sección 4.)
+2. **Detalles de implementación.** Testea el comportamiento (qué hace), no las tripas (cómo lo hace).
+   Un test que sabe que usas una `List` en vez de un `Dictionary` se rompe en cada refactor aunque el
+   comportamiento siga bien: has construido esposas, no una red.
+3. **Código que no es tuyo.** No testees EF Core ni la librería de terceros. Sí testeas *tu
+   integración* con ella —que tu repositorio guarda y recupera bien— pero eso es integración (Módulo 6).
+4. **DTOs y código autogenerado** sin comportamiento.
+
+---
+
+## 6. El marco que lo une: riesgo × consecuencia
+
+Ante cualquier trozo de código, dos preguntas: **¿qué pasa si esto se rompe?** (consecuencia) y
+**¿cada cuánto cambia?** (volatilidad). El cruce decide:
 
 ```mermaid
-flowchart LR
-    F([FIRST<br/>un test sano]) --> Fa[Fast<br/>rapido: milisegundos]
-    F --> In[Independent<br/>se ejecuta solo, en cualquier orden]
-    F --> Re[Repeatable<br/>mismo resultado siempre]
-    F --> Se[Self-validating<br/>verde o rojo, sin mirar a ojo]
-    F --> Ti[Timely<br/>escrito cerca del codigo]
+quadrantChart
+    title Que testear - riesgo x consecuencia
+    x-axis Cambia poco --> Cambia a menudo
+    y-axis Consecuencia baja --> Consecuencia alta
+    quadrant-1 Maxima prioridad (la cocina)
+    quadrant-2 Testear - red para cuando lo toques
+    quadrant-3 Sin tests - el garaje vacio
+    quadrant-4 Algun test ligero
+    CalculadoraDescuentos: [0.85, 0.9]
+    Regla fiscal anual: [0.2, 0.85]
+    Getters / DTOs: [0.2, 0.15]
+    Andamiaje volatil: [0.8, 0.25]
 ```
 
-Las acuñaron Tim Ottinger y Brett Schuchert, y las popularizó Robert C. Martin en *Clean Code*.
+No es una fórmula, es una brújula. Te quita la ansiedad del "tengo que testearlo todo": **testea lo
+que, si se rompe, te va a doler — y refuerza donde, además, se toca a menudo.**
 
 ---
 
-## 4. Las cinco, con su olor y su cura
+## 7. Lo que te llevas
 
-- **Fast (rápido).** Milisegundos, no segundos. La velocidad es lo que hace que de verdad los uses, y
-  un test que no usas no protege. *Olor:* tarda. *Causa nº1:* tocar cosas de fuera (base de datos,
-  red, disco). *Cura:* aislar esas dependencias — el Módulo 5.
-- **Independent (independiente).** Cada test se ejecuta solo, sin depender de que otro corriera antes
-  ni del orden. *Olor:* falla cuando cambias el orden o paralelizas. *Cura:* cada test se monta su
-  propio escenario desde cero y lo deja limpio. Vuelve como buena práctica en M7.3; los builders de
-  M3.3 son la herramienta.
-- **Repeatable (repetible).** Mismo resultado siempre: tu máquina, la del compañero, el servidor, hoy
-  y dentro de seis meses. *Olor:* pasa unas veces y falla otras sin tocar el código → un test *flaky*,
-  o inestable. *Causa típica:* el reloj (`DateTime.Now`), la aleatoriedad, el orden de una colección.
-  *Cura:* el test controla todo lo que afecta a su resultado (en VentasShop, el reloj se inyecta —
-  `IReloj` —, no se lee suelto).
-- **Self-validating (se valida solo).** El test dice él solito si pasó o falló: verde o rojo, sin que
-  mires la consola ni compares a ojo. *Olor:* un `Console.WriteLine` con un humano de árbitro. *Cura:*
-  termina en una **aserción** que la máquina comprueba (la sintaxis, en M5.3).
-- **Timely (escrito a tiempo).** El test se escribe **cerca** del código, no meses después. En su
-  versión estricta es TDD (test antes del código), pero no hace falta comprarlo entero: lo útil es
-  escribirlo pegado a la feature, no en una "fase de testing al final" que se la come el recorte.
+La foto de qué blindas y qué sueltas es la estrategia de testing de un proyecto en una servilleta, y
+es una decisión de **criterio**, no de herramienta. Por eso este módulo va antes que cualquier xUnit:
+de nada sirve saber escribir tests si los escribes para las cosas equivocadas.
 
----
+El laboratorio ([`material/labs/M2.1-clasificar-que-testear.md`](material/labs/M2.1-clasificar-que-testear.md))
+es justo eso: clasificar, sin escribir un test. Y la tarjeta
+[`material/tarjetas/M2.1-que-testear.md`](material/tarjetas/M2.1-que-testear.md) la tienes para el día
+a día.
 
-## 5. VentasShop pasa el filtro FIRST
-
-Coge un test real: *"un pedido de 500 € de un cliente estándar lleva un 10 % de descuento"*.
-
-- **Rápido:** solo toca el `CalculadoraDescuentos`, lógica pura: menos de un milisegundo.
-- **Independiente:** se construye su propio pedido; no necesita que otro test se haya ejecutado antes.
-- **Repetible:** no depende del reloj — el 10 % es el 10 % hoy y el día de Navidad.
-- **Se valida solo:** termina en una aserción (`tasa == 0.10m`), verde o rojo.
-- **Timely:** se escribe a la vez que la regla de descuento.
-
-La versión tóxica del mismo test: si leyera la fecha real con `DateTime.Now` para mirar una promoción
-del día, dejaría de ser repetible. Y bastaría con que reutilizara un pedido que dejó otro test para
-cargarse la independencia. Misma intención, mismo nombre, y un test inservible. FIRST es la lupa para
-ver esa diferencia.
-
----
-
-## 6. Lo que te llevas
-
-Con esto cierras los fundamentos: el porqué (M1.1), la forma de repartir (M1.2) y el olfato para
-distinguir un test sano de uno tóxico (M1.3). El laboratorio
-([`material/labs/M1.3-diagnostico-first.md`](material/labs/M1.3-diagnostico-first.md)) es de
-diagnóstico: por cada test, qué letra de FIRST incumple. Y la tarjeta
-[`material/tarjetas/M1.3-first.md`](material/tarjetas/M1.3-first.md) la tienes para el día a día.
-
-A partir de aquí todo es bajarlo a las manos. La primera pregunta de las manos es la del Módulo 2: de
-todo lo que hace tu sistema, ¿qué merece un test y qué no? Porque testear de más es tan caro como
-testear de menos.
+Ya sabes *qué zonas* cubrir. Pero dentro de cada zona hay infinitos valores posibles. ¿Los pruebas
+todos? Imposible. Hay cuatro técnicas que te dicen qué puñado de casos cubre de verdad el
+comportamiento — y ahí empiezan los tests de verdad. Es el **M2.2**.
