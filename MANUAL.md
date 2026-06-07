@@ -1,153 +1,149 @@
-# Manual del alumno — M1.1 · Conceptos clave de testing
+# Manual del alumno — M1.2 · La pirámide de testing
 
-Esto **no** es el [`README.md`](README.md). El README es la ficha técnica de esta rama: qué hay,
-cómo se compila, qué encontrarás. Este manual va antes y te cuenta el *porqué*: qué decisión
-silenciosa entrena este submódulo y por qué la idea del seguro te va a acompañar todo el curso.
+Esto **no** es el [`README.md`](README.md) (la ficha técnica de la rama). Este manual te cuenta el
+*porqué*: cómo repartir el esfuerzo entre tipos de test para no acabar con una suite que nadie mira.
 
-Tiempo de lectura: ~10 min. Submódulo de referencia: M1.1 (Fundamentos de Testing). Esta rama es
-**conceptual**: todavía no se escribe ni un test —la herramienta, xUnit, llega en el Módulo 4—. Lo
-que se entrena aquí es la cabeza: cuándo un test te ahorra un problema y cuándo es ceremonia.
+Tiempo de lectura: ~10 min. Submódulo M1.2 (Fundamentos). Rama **conceptual**: aquí no se escribe
+código de test —eso empieza en M2—; lo que se entrena es **decidir el reparto**.
 
 ---
 
 ## 1. La idea en una frase
 
-Un test automatizado es un seguro: lo escribes una vez y te avisa cada vez que el código deja de
-hacer lo que decidiste que hiciera.
-
-No prueba que tu código funciona hoy —eso ya lo sabes, si no, no lo habrías dado por bueno—. Salta
-dentro de tres meses, cuando alguien toque otra cosa y rompa esta sin querer.
+La forma de pirámide no es estética: **muchos tests rápidos abajo, pocos lentos arriba, porque
+velocidad y confianza tiran en direcciones opuestas.**
 
 ---
 
-## 2. El problema real que hay detrás
+## 2. El desastre que le da nombre
 
-A una formación de testing se llega defendiéndose, y casi siempre con una de estas tres cabezas
-puestas. Mira a ver si reconoces la tuya.
+Casi todo el que empieza cae en el mismo sitio, y el razonamiento hasta parece impecable: si los
+tests que más se parecen a lo que hace el usuario son los de punta a punta —abrir la aplicación,
+pinchar, rellenar, enviar—, esos dan la confianza de verdad. Así que escribes un montón de esos. Y
+al principio va de maravilla.
 
-**El que no tiene tiempo.** Tiene un backlog que da miedo y los tests le suenan a trabajo extra que
-nadie le paga. Lo que no ve es que el tiempo no se pierde, se adelanta: el caro es el otro, el del
-bug en producción un domingo por la tarde.
+Hasta que la suite crece. Tarda veinte minutos. Luego cuarenta. Y empieza a fallar sola: un test se
+cae porque un botón cambió de sitio, otro porque la red fue lenta esa vez, otro porque el de antes
+dejó datos a medias. Fallos que no son bugs — son ruido. Y cuando una suite falla por todo menos
+por bugs, pasa lo inevitable: la gente deja de mirarla. *"Otra vez en rojo, será el entorno, dale
+otra vez."* El día que el rojo era de verdad, ya nadie lo ve.
 
-**El que cree que es cosa de QA.** Su trabajo es escribir la feature, no probarla. Pero el testing
-del que hablamos aquí lo escribe quien programa, pegado al código, no otro departamento al final.
-
-**El que le da a F5 y ya.** Ha probado a mano, ha visto que sale lo que tenía que salir, y a otra
-cosa. El problema es que ese F5 lo va a repetir a mano cada vez que toque algo, durante dos años,
-hasta el día que se le olvide justo el caso que importaba.
-
-Los tres tienen parte de razón. Y los tres se llevan la misma sorpresa: el testing no va de probar
-por religión, va de saber **qué proteger para poder cambiar el resto con tranquilidad**.
+A ese desastre se le ha dado forma de figura para que lo reconozcas y no lo repitas. Una pirámide.
 
 ---
 
-## 3. Un test es un seguro
+## 3. Los tres niveles
 
-Piensa en un seguro —el del coche, el del hogar—. El día que lo firmas es un fastidio: pagas y no
-pasa nada, porque ese día no se ha roto nada. Si lo juzgaras por el día de la firma, dirías que es
-dinero tirado.
+Los tests se agrupan en tres niveles según cuánto sistema real meten dentro:
 
-No se valora ahí. Se valora el día, meses después, en que el granizo te revienta el parabrisas. Y
-hay algo más fino: un buen seguro te deja *vivir tranquilo* mientras tanto —te atreves a aparcar en
-la calle, a hacer el viaje largo—. No es solo una red para la desgracia: es permiso para moverte.
+- **Unitarios** — prueban una pieza pequeña y aislada (una clase, un método, una regla). Sin base de
+  datos, sin red. Le das entradas, miras la salida. Son los del `CalculadoraDescuentos`. Como no
+  tocan nada externo, vuelan: miles se ejecutan en segundos, y cuando uno falla te señala la pieza
+  exacta.
+- **Integración** — prueban que varias piezas funcionan juntas, con las de fuera de verdad: tu
+  código contra una base de datos real, el ORM, otro servicio. Más realismo, más lentos, más
+  laboriosos. Cazan los fallos de las costuras entre tu código y el mundo.
+- **Punta a punta (e2e)** — prueban el sistema entero como una persona: del navegador a la base de
+  datos y vuelta. Los que más confianza dan y los más lentos y frágiles, por la misma razón: hay mil
+  piezas en juego y cualquiera puede fallar por algo que no es un bug.
 
-Un test es exactamente eso. El día que lo escribes parece una prima pagada a cambio de nada. Pero
-está para dentro de tres meses, y mientras tanto te da el permiso para tocar tu propio código sin
-miedo. Guárdate la imagen; vuelve en cada módulo.
+El patrón es toda la historia del módulo en una línea: **a más realismo, más confianza, pero más
+lentitud y más fragilidad.** Subir de nivel siempre es ese intercambio.
 
 ---
 
-## 4. ¿Automatizar o dejarlo a mano?
+## 4. Por qué la forma es una pirámide
 
-Que defendamos lo automatizado no quiere decir que el manual sobre. Conviven, pero cada uno es bueno
-para cosas distintas, y casi todo el desperdicio sale de cruzarlos: automatizar una exploración que
-haces una vez, o condenar a una persona a repetir a mano cuarenta comprobaciones en cada release.
-
-La regla práctica es esta: **automatiza lo repetitivo y determinista; deja el criterio y la
-exploración para las personas.** Antes de escribir un test, pásalo por este filtro:
+Si abajo está lo barato, rápido y estable, y arriba lo caro, lento y frágil, ¿de cuáles te interesa
+tener muchos y de cuáles pocos? La respuesta cae sola: muchos abajo, pocos arriba.
 
 ```mermaid
-flowchart TD
-    A[Una comprobacion que vas a hacer] --> B{La vas a repetir<br/>muchas veces?}
-    B -->|Una sola vez| M[A mano<br/>exploracion]
-    B -->|En cada release| C{El resultado es<br/>siempre el mismo?}
-    C -->|Depende del criterio| M
-    C -->|Determinista| D{Comprobarla a mano<br/>es lento o aburrido?}
-    D -->|Si| AUTO[Automatizala]
-    D -->|No, es trivial| M
+flowchart TB
+    subgraph SANA [Piramide sana]
+        direction TB
+        E["e2e — pocos (~10%)<br/>lentos · fragiles · confianza maxima"]
+        I["Integracion — algunos (~20%)<br/>velocidad y confianza medias"]
+        U["Unitarios — muchos (~70%)<br/>rapidos · estables · feedback al instante"]
+    end
+    E -.-> I -.-> U
 ```
 
-Ese es justo el ejercicio de esta rama: ver una lista de comprobaciones y decidir cuáles caen a cada
-lado. Lo tienes resuelto en [`labs/M1.1-automatizar-o-no.md`](labs/M1.1-automatizar-o-no.md).
+No es estética: es la consecuencia de que velocidad y confianza tiran en direcciones opuestas.
+Quieres feedback rápido —eso empuja hacia abajo— y confianza de que el sistema entero va —eso empuja
+hacia arriba—. La pirámide es el reparto que te compra casi toda la confianza sin renunciar a la
+velocidad.
 
 ---
 
-## 5. Para qué sirve de verdad (los tres usos)
+## 5. La proporción 70/20/10 (y por qué no te la creas del todo)
 
-Pregunta a diez programadores para qué sirven los tests y nueve dirán «para encontrar bugs». Es
-cierto, pero es la parte pequeña. Hay tres usos, y van de menor a mayor importancia, al revés de como
-los ordena la intuición:
+Vas a ver repetida una proporción: 70% unitarios, 20% integración, 10% e2e. Está bien como punto de
+partida. Pero no la apuntes como si fuera la tabla periódica.
 
-1. **Detectar errores.** Útil, pero es lo que menos te cambia la vida: un bug lo acabas encontrando
-   de un modo u otro; el test solo lo encuentra antes y más barato.
-2. **Dejar por escrito qué hace el código.** Un test que se llama `CalcularDescuento_Supera500_Aplica10`
-   es una especificación que, además, **falla en rojo** el día que el código deja de cumplirla.
-   Documentación que no puede mentir.
-3. **Dejarte tocar el código sin miedo.** Este es el corazón. ¿Cuántas veces has dejado un método
-   feo como estaba, pensando «si funciona, no lo toques», por no jugártela? Con una buena red de
-   tests cambias, ejecutas, y en diez segundos sabes si rompiste algo. Refactorizar deja de ser una
-   apuesta. Por eso los proyectos bien testeados envejecen mejor: la gente se atreve a mejorarlos.
+Esos números no salen de ninguna ley. El reparto bueno depende de lo que construyes: una librería de
+cálculo es casi toda lógica pura (90% unitarios y está perfecta así); una aplicación que solo mueve
+datos entre una API y una pantalla igual necesita más integración, porque su riesgo está en las
+costuras. La regla de verdad no es el número, es la **forma**: muchos rápidos abajo, pocos lentos
+arriba. Si la respetas, da igual que sea 70/20/10 o 60/30/10.
 
 ---
 
-## 6. El coste del bug: por qué pillarlo pronto importa
+## 6. El antipatrón: la pirámide del revés
 
-Hay una idea con décadas de profesión detrás: cuanto más tarde encuentras un fallo, más caro sale
-arreglarlo. Sigue al mismo bug por su recorrido y se ve solo:
+Le das la vuelta y sale un helado de cucurucho: pocos unitarios en la punta de abajo, un montón de
+e2e desbordándose arriba. Por eso se le llama **el cono de helado**, y es el desastre del principio,
+ahora dibujado.
 
 ```mermaid
-flowchart LR
-    A[Al escribir<br/>~2 min] --> B[CI / integracion<br/>unos minutos]
-    B --> C[Rama principal<br/>paras al equipo]
-    C --> D[Produccion<br/>cliente + prisa + redeploy]
+flowchart TB
+    subgraph CONO [El cono de helado · antipatron]
+        direction TB
+        CE["e2e — demasiados<br/>lentos · flaky · la suite que nadie mira"]
+        CI["Integracion — algunos"]
+        CU["Unitarios — casi ninguno"]
+    end
+    CE -.-> CI -.-> CU
 ```
 
-Honestidad: circulan tablas que dicen «1-10-100-1000». Vienen de estudios viejos y la gente seria
-las pone en duda como medida exacta, así que no te las vendo como ley. Lo que no discute nadie es la
-**forma** de la curva: crece, y crece rápido. Cada test que mueve el descubrimiento de un fallo
-«hacia la izquierda», hacia el momento de escribirlo, te ahorra dinero real. A eso se le llama
-*shift left*.
+Casi nunca se llega ahí por una decisión consciente: se llega por inercia. El equipo prueba todo a
+mano, un día decide "vamos a automatizar lo que ya hacemos", y resulta que lo que hacían eran clics
+de punta a punta. Los síntomas se reconocen enseguida: la suite tarda una eternidad, falla de forma
+intermitente sin que haya bugs reales —lo que se llama tests *flaky*, o inestables, que veremos a
+fondo en el Módulo 7— y, al final, la gente deja de mirarla. No es solo subóptimo: da una sensación
+de cobertura que no es real y entrena al equipo a no fiarse de los rojos.
 
-Lo verás con cara y ojos en VentasShop: un `>=` que alguien cambia por `>` deja el pedido de 500 €
-exactos sin su descuento. A mano no lo pilla nadie —¿quién prueba el 500 clavado?—; un test lo caza
-el mismo día. Dos minutos contra tres semanas y un cliente enfadado.
+Si te llevas un único diagnóstico: si tu suite tarda demasiado y falla por todo menos por bugs, mira
+la forma antes que nada. Casi seguro la tienes invertida.
 
 ---
 
-## 7. TDD: lo nombramos, no lo practicamos
+## 7. VentasShop sobre la pirámide
 
-Tarde o temprano aparece TDD —escribir el test *antes* que el código—. Su ciclo tiene tres tiempos:
+El reparto cae casi solo en cuanto miras dónde está la chicha de cada parte:
 
-```mermaid
-flowchart LR
-    R[Rojo: escribe un test que falla] --> G[Verde: codigo minimo para pasarlo]
-    G --> RF[Refactor: limpia en verde, sin miedo]
-    RF --> R
-```
+- **Base (unitarios):** el `CalculadoraDescuentos`, las reglas de transición de estado del `Pedido`,
+  las invariantes de `Cantidad`. Lógica pura, sin dependencias. Unitarios a montones, en
+  milisegundos.
+- **Franja media (integración):** guardar y recuperar un `Pedido` de la base de datos, comprobar que
+  una restricción de la tabla se respeta de verdad. Mete la base de datos real — Módulo 6.
+- **Punta (e2e):** un puñado pequeño y bien elegido. "Un cliente crea un pedido, lo paga y le llega
+  confirmado". El camino que, si se rompe, no vendes. Ese, y poco más.
 
-¿Funciona? A mucha gente le cambia la forma de programar; a otra le resulta forzado y no lo adopta,
-y no pasa nada. Este no es un curso de TDD. Quédate con la idea de fondo, que vale hagas TDD estricto
-o no: **pensar cómo vas a comprobar que algo funciona, antes de escribirlo, te obliga a entender qué
-tiene que hacer.**
+Y fíjate en lo que **no** haríamos: un e2e que arranca la tienda entera solo para comprobar que un
+descuento del 10% se calcula bien. Eso es un unitario disfrazado de e2e: pagas toda la lentitud y la
+fragilidad de un test de punta a punta para verificar una regla que un unitario comprueba en un
+milisegundo. Reconocer esa confusión —¿esto de qué nivel es de verdad?— es media batalla del reparto.
 
 ---
 
-## 8. Lo que te llevas de esta rama
+## 8. Lo que te llevas
 
-Arrancas el curso con la mentalidad correcta: no «testeo porque toca», sino «qué quiero que esté
-protegido para cambiar el resto con tranquilidad». La primera habilidad no es teclear `[Fact]`, es
-**decidir qué merece automatizarse** —el lab de esta rama—.
+Ya sabes en qué nivel vive cada test y en qué proporción los quieres. El laboratorio
+([`material/labs/M1.2-reparto-piramide.md`](material/labs/M1.2-reparto-piramide.md)) es de eso:
+colocar comprobaciones en su nivel y cazar el unitario disfrazado de e2e. Y para tenerlo a mano
+cuando diseñes tu suite, la tarjeta de decisión
+[`material/tarjetas/M1.2-que-nivel.md`](material/tarjetas/M1.2-que-nivel.md).
 
-Lo siguiente es la pregunta incómoda: si tuvieras que testear *todo*, no acabarías nunca. Entonces,
-¿qué se testea, a qué nivel y cuánto de cada cosa? Hay una forma muy visual de ordenarlo, lleva
-décadas funcionando y se dibuja como una pirámide. Es el **M1.2**.
+Falta una pieza más sutil para cerrar los fundamentos: ¿qué hace que un test concreto sea *bueno*?
+Puedes tener la pirámide perfecta y, dentro, tests que son una bomba de relojería. Hay cinco
+propiedades que lo distinguen, se resumen en una palabra —**FIRST**— y son el **M1.3**.

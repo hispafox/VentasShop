@@ -1,21 +1,27 @@
-# VentasShop · M1.1 — Conceptos clave de testing
+# VentasShop · M1.2 — La pirámide de testing
 
-> Rama `module-01.1/conceptos-clave`. Checkpoint del curso **TESTNET**. Submódulo **conceptual**:
-> aquí todavía no se escribe ningún test (la herramienta, xUnit, llega en el Módulo 4). El
-> entregable de esta rama es **didáctico**: el manual y el laboratorio de decisión.
+> Rama `module-01.2/piramide`. Checkpoint del curso **TESTNET**. Submódulo **conceptual**: aquí no se
+> escribe código de test todavía (eso empieza en M2); el entregable es **didáctico** — el manual, los
+> diagramas y la tarjeta de decisión.
 
 ## Qué hay en esta rama
 
-- **[`MANUAL.md`](MANUAL.md)** — el manual del alumno: la analogía del seguro, automatizado vs.
-  manual, los tres usos del testing, la curva del coste del bug y el ciclo Red-Green-Refactor. Con
-  **3 diagramas** (Mermaid, se ven en GitHub y en el preview del IDE):
-  - flowchart **¿automatizar o a mano?**
-  - la **curva del coste** del bug por fase
-  - el ciclo **Red-Green-Refactor**
-- **[`labs/M1.1-automatizar-o-no.md`](labs/M1.1-automatizar-o-no.md)** — laboratorio resuelto:
-  clasificar diez comprobaciones en *automatizar* / *a mano*, con su justificación y las dos trampas.
-- El **código de producción de VentasShop** (heredado de `starter`): aquí se mira, no se testea
-  todavía. Compila.
+- **[`MANUAL.md`](MANUAL.md)** — el manual del alumno: el desastre del cono, los tres niveles, el
+  trade-off velocidad↔confianza, la proporción 70/20/10 como orientación, el antipatrón del cono de
+  helado y el reparto de VentasShop. Con **2 diagramas Mermaid** (la pirámide sana y el cono de
+  helado), que se ven en GitHub y en el preview del IDE.
+- **[`material/tarjetas/M1.2-que-nivel.md`](material/tarjetas/M1.2-que-nivel.md)** — tarjeta de
+  decisión de 1 página: ¿en qué nivel va este test? (imprimible).
+- **[`material/labs/M1.2-reparto-piramide.md`](material/labs/M1.2-reparto-piramide.md)** — lab
+  resuelto: colocar diez comprobaciones en su nivel y cazar el unitario disfrazado de e2e.
+- El **código de producción de VentasShop** (heredado de `starter`): aquí se mira, no se testea aún.
+
+## Organización del repo
+
+- `src/` y `tests/` → **solo** la solución .NET (lo que compila).
+- `material/` → todo el material didáctico, separado del código: `material/tarjetas/` (cheat-sheets),
+  `material/labs/` (laboratorios) y, más adelante, interactivos (HTML/JSX) e imágenes.
+- `MANUAL.md` + `README.md` en la raíz = el manual y la ficha de **este** checkpoint.
 
 ## Cómo se compila
 
@@ -23,14 +29,13 @@
 dotnet build VentasShop.slnx
 ```
 
-No hay tests en esta rama (es conceptual), así que `dotnet test` no ejecuta ninguno todavía. Los
-tests empiezan a crecer a partir del Módulo 2.
+Sin tests en esta rama (conceptual); `dotnet test` no ejecuta ninguno todavía.
 
 ## Dónde estás en el curso
 
-`starter` → **`module-01.1/conceptos-clave`** ← estás aquí → `module-01.2/piramide` → …
+… → `module-01.1/conceptos-clave` → **`module-01.2/piramide`** ← estás aquí → `module-01.3/first` → …
 
 ## Notas
 
-- Código y material **en castellano** (regla del repo). Proyecto **neutro**: sin nombres de cliente.
+- Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
 - Visión general del repo y mapa completo de ramas: rama `main`.
