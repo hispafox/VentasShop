@@ -12,10 +12,19 @@
   - flowchart **¿automatizar o a mano?**
   - la **curva del coste** del bug por fase
   - el ciclo **Red-Green-Refactor**
-- **[`labs/M1.1-automatizar-o-no.md`](labs/M1.1-automatizar-o-no.md)** — laboratorio resuelto:
-  clasificar diez comprobaciones en *automatizar* / *a mano*, con su justificación y las dos trampas.
+- **[`material/tarjetas/M1.1-automatizar-o-no.md`](material/tarjetas/M1.1-automatizar-o-no.md)** —
+  tarjeta de decisión de 1 página: ¿automatizar o a mano? (imprimible).
+- **[`material/labs/M1.1-automatizar-o-no.md`](material/labs/M1.1-automatizar-o-no.md)** — laboratorio
+  resuelto: clasificar diez comprobaciones en *automatizar* / *a mano*, con su justificación y las dos trampas.
 - El **código de producción de VentasShop** (heredado de `starter`): aquí se mira, no se testea
   todavía. Compila.
+
+## Organización del repo
+
+- `src/` y `tests/` → **solo** la solución .NET (lo que compila).
+- `material/` → todo el material didáctico, separado del código: `material/tarjetas/` (cheat-sheets),
+  `material/labs/` (laboratorios) y, más adelante, interactivos (HTML/JSX) e imágenes.
+- `MANUAL.md` + `README.md` en la raíz = el manual y la ficha de **este** checkpoint.
 
 ## Cómo se compila
 

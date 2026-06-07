@@ -78,7 +78,9 @@ flowchart TD
 ```
 
 Ese es justo el ejercicio de esta rama: ver una lista de comprobaciones y decidir cuáles caen a cada
-lado. Lo tienes resuelto en [`labs/M1.1-automatizar-o-no.md`](labs/M1.1-automatizar-o-no.md).
+lado. Lo tienes resuelto en
+[`material/labs/M1.1-automatizar-o-no.md`](material/labs/M1.1-automatizar-o-no.md), y como tarjeta de
+decisión para tener a mano, [`material/tarjetas/M1.1-automatizar-o-no.md`](material/tarjetas/M1.1-automatizar-o-no.md).
 
 ---
 
