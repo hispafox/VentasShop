@@ -38,3 +38,6 @@ lenguaje normal
 cross-\w
 \brepo\b
 \bla doc\b
+calentamiento
+\bcorren?\b
+\bcorrer\b
