@@ -1,0 +1,40 @@
+# Lista grep-able de la lista negra — subconjunto LITERAL y de ALTA PRECISIÓN de §8.
+# Una expresión regular por línea (se aplica case-insensitive). Las líneas con # son comentarios.
+# La usa el hook check-lista-negra.ps1: avisa si alguno aparece en prosa de curso
+# (ficheros .md bajo temario/ , presentaciones/ o locucion/ de cualquier Desarrollo).
+#
+# Criterio de inclusión: términos que casi NUNCA son correctos en prosa de alumno en español.
+# Los calcos dependientes de contexto (scope, default, placeholder, flaky…) NO van aquí para
+# no generar falsos positivos en un curso de dev; esos los caza /revisar con la lista completa.
+#
+# Cuando /revisar cace un calco nuevo y literal, se añade aquí Y a lista-negra.md §8.
+
+multi-?superficies?
+\bsuperficies?\b
+\bcodebase\b
+\boverkill\b
+casos? de uso
+estado del arte
+modelos frontera
+con esteroides
+\bthroughline\b
+vale la pena
+deep dive
+robust[oa]s?\b
+conviene [a-záéíóúñ]+r\b
+\bin-place\b
+voice-to-code
+\btunning\b
+trade-?offs?
+\bagentic\b
+lenguaje normal
+\brefactors?\b
+\bfeatures?\b
+\bspoiler\b
+\bstring\b
+\boutputs\b
+\bdebugging\b
+\bsuite\b
+cross-\w
+\brepo\b
+\bla doc\b

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VentasShop.Aplicacion/VentasShop.Aplicacion.csproj" />
+    <Project Path="src/VentasShop.Dominio/VentasShop.Dominio.csproj" />
+    <Project Path="src/VentasShop.Infraestructura/VentasShop.Infraestructura.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VentasShop.TestsIntegracion/VentasShop.TestsIntegracion.csproj" />
+    <Project Path="tests/VentasShop.TestsUnitarios/VentasShop.TestsUnitarios.csproj" />
+  </Folder>
+</Solution>
