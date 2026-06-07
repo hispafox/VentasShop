@@ -1,19 +1,17 @@
-# VentasShop · M1.2 — La pirámide de testing
+# VentasShop · M1.3 — Propiedades F.I.R.S.T.
 
-> Rama `module-01.2/piramide`. Checkpoint del curso **TESTNET**. Submódulo **conceptual**: aquí no se
-> escribe código de test todavía (eso empieza en M2); el entregable es **didáctico** — el manual, los
-> diagramas y la tarjeta de decisión.
+> Rama `module-01.3/first`. Checkpoint del curso **TESTNET**, cierra el Módulo 1. Submódulo
+> **conceptual**: aún no se escribe código de test (eso empieza en M2); el entregable es **didáctico**.
 
 ## Qué hay en esta rama
 
-- **[`MANUAL.md`](MANUAL.md)** — el manual del alumno: el desastre del cono, los tres niveles, el
-  trade-off velocidad↔confianza, la proporción 70/20/10 como orientación, el antipatrón del cono de
-  helado y el reparto de VentasShop. Con **2 diagramas Mermaid** (la pirámide sana y el cono de
-  helado), que se ven en GitHub y en el preview del IDE.
-- **[`material/tarjetas/M1.2-que-nivel.md`](material/tarjetas/M1.2-que-nivel.md)** — tarjeta de
-  decisión de 1 página: ¿en qué nivel va este test? (imprimible).
-- **[`material/labs/M1.2-reparto-piramide.md`](material/labs/M1.2-reparto-piramide.md)** — lab
-  resuelto: colocar diez comprobaciones en su nivel y cazar el unitario disfrazado de e2e.
+- **[`MANUAL.md`](MANUAL.md)** — el manual del alumno: «ese test falla a veces, dale otra vez», las
+  cinco propiedades (Fast, Independent, Repeatable, Self-validating, Timely) con su olor y su cura, y
+  el test de VentasShop pasado por el filtro. Con **1 diagrama Mermaid** (FIRST como mapa).
+- **[`material/tarjetas/M1.3-first.md`](material/tarjetas/M1.3-first.md)** — tarjeta de 1 página: las
+  cinco letras, su olor, su cura, y cuáles se negocian (imprimible).
+- **[`material/labs/M1.3-diagnostico-first.md`](material/labs/M1.3-diagnostico-first.md)** — lab
+  resuelto: por cada test, diagnosticar qué letra de FIRST incumple y cómo se cura.
 - El **código de producción de VentasShop** (heredado de `starter`): aquí se mira, no se testea aún.
 
 ## Organización del repo
@@ -29,11 +27,11 @@
 dotnet build VentasShop.slnx
 ```
 
-Sin tests en esta rama (conceptual); `dotnet test` no ejecuta ninguno todavía.
+Sin tests en esta rama (conceptual); `dotnet test` no ejecuta ninguno todavía. Los tests empiezan en M2.
 
 ## Dónde estás en el curso
 
-… → `module-01.1/conceptos-clave` → **`module-01.2/piramide`** ← estás aquí → `module-01.3/first` → …
+… → `module-01.2/piramide` → **`module-01.3/first`** ← estás aquí (cierra M1) → `module-02.1/que-testear` → …
 
 ## Notas
 
