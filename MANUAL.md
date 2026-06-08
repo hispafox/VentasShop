@@ -1,100 +1,97 @@
-# Manual del alumno — M4.2 · Tests parametrizados con `[Theory]`
+# Manual del alumno — M4.3 · Gestión de excepciones en tests
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué quince tests casi
-idénticos son una mala señal, y cómo un `[Theory]` los convierte en un test con muchos casos sin perder
-—al revés, ganando— diagnóstico cuando algo falla.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué que tu código falle
+bien es una funcionalidad como cualquier otra, y cómo se prueba un mecanismo de seguridad que solo se
+activa cuando algo va mal.
 
-Tiempo de lectura: ~12 min. Submódulo M4.2 (Tests Unitarios con xUnit.net).
+Tiempo de lectura: ~12 min. Submódulo M4.3 (Tests Unitarios con xUnit.net). Cierra el Módulo 4.
 
 ---
 
 ## 1. La idea en una frase
 
-Un mismo comportamiento con muchos datos no son muchos tests: es un test con muchos casos. Parametrizar es
-separar la lógica del test (el molde) de los datos que lo ejercitan (las láminas).
+Que el código falle bien —rechazar la operación, lanzar la excepción correcta, dejar el sistema coherente—
+es una funcionalidad que diseñas a propósito. Y como toda funcionalidad, se testea.
 
 ---
 
-## 2. El muro de copia-pega
+## 2. No se puede con `Assert.Equal`
 
-Para cubrir bien la `CalculadoraDescuentos` hacen falta unos quince casos: los tramos de importe, los tipos
-de cliente, los valores límite, el tope. Si los escribes como `[Fact]` separados, te queda un muro de
-métodos idénticos salvo dos números. Huele mal: si el método cambia de firma tocas quince sitios, el
-archivo se vuelve ilegible, y añadir un caso invita a olvidarse. El problema de fondo es que mezclas la
-lógica (siempre igual) con los datos (lo único que cambia).
-
----
-
-## 3. La prensa y las láminas
-
-Una prensa de estampar se fabrica una vez, con cuidado. Por ella pasan láminas, una tras otra, y cada una
-sale igual. Nadie fabrica una prensa por cada pieza. Un test parametrizado es eso: el método es la prensa
-—la lógica escrita una sola vez—, y los datos son las láminas. Los quince `[Fact]` eran quince prensas
-hechas a mano para estampar una pieza cada una.
+Si un método lanza una excepción, no hay valor de retorno que comparar: la excepción interrumpe la
+ejecución antes de devolver nada. Y si salta sin que la esperes, el test falla por la razón equivocada,
+como un error inesperado. Necesitas decirle a xUnit "espero que esto lance una excepción, y si NO la lanza,
+*eso* es el fallo". Aquí el éxito es que algo explote.
 
 ---
 
-## 4. `[Theory]` + `[InlineData]` y la ventaja del diagnóstico
+## 3. Probar el airbag
 
-`[Theory]` marca un test que se ejecuta varias veces; cada `[InlineData]` aporta un juego de datos. El
-ejemplo limpio del repo es la invariante de `Cantidad` con enteros (mira
-[`tests/.../CantidadTests.cs`](tests/VentasShop.TestsUnitarios/CantidadTests.cs)).
-
-La ventaja que se subestima: **xUnit trata cada `[InlineData]` como un test independiente**. En el Test
-Explorer ves una fila por caso. Si uno falla y los demás pasan, el reporte te dice cuál, con su valor. Un
-`foreach` dentro de un `[Fact]` se pararía en el primer fallo y te ocultaría el resto. Es parametrización
-con diagnóstico, no solo ahorro de líneas.
+¿Cómo se prueba el airbag de un coche? No esperando a tener un accidente: con un *crash test*, provocando
+el choque en condiciones controladas para comprobar que el mecanismo salta. Las excepciones de dominio
+—"no se puede pagar un pedido sin líneas"— son los airbags de tu código, y se prueban igual: le pasas la
+entrada inválida a propósito y verificas que lanza la excepción correcta, con el mensaje correcto.
 
 ---
 
-## 5. La limitación del `decimal` (el punto del curso)
+## 4. `Assert.Throws<T>`: provocar el choque
 
-`[InlineData]` solo admite constantes de compilación, y `decimal` **no** lo es: `[InlineData(0.10m, ...)]`
-no compila. Y resulta que los importes de la `CalculadoraDescuentos` son `decimal`. Por eso, en este curso,
-los importes van por las otras fuentes de datos, no por `[InlineData]`. Lo ves resuelto en
-[`tests/.../CalculadoraDescuentosTests.cs`](tests/VentasShop.TestsUnitarios/CalculadoraDescuentosTests.cs),
-que usa `TheoryData<decimal, ...>` justo por esto.
+Le pasas el tipo de excepción esperado y un trozo de código; pasa si lanza *exactamente* esa excepción.
+Mira [`tests/.../ExcepcionesTests.cs`](tests/VentasShop.TestsUnitarios/ExcepcionesTests.cs).
 
----
-
-## 6. Las cuatro fuentes de datos
-
-Una sola idea —separar el molde de las láminas—, cuatro sitios donde guardar las láminas. Las tienes una al
-lado de otra en
-[`tests/.../ParametrizacionTests.cs`](tests/VentasShop.TestsUnitarios/ParametrizacionTests.cs):
-
-- **`[InlineData]`** para constantes simples (enteros, enums).
-- **`[MemberData]`** toma los casos de un método estático (ahí sí caben decimales y objetos). Usa
-  `nameof(...)`, no la cadena: si renombras, el compilador te avisa.
-- **`TheoryData<>`** es `[MemberData]` tipado: si te equivocas de tipo, no compila. La opción por defecto.
-- **`[ClassData]`** pone los datos en su propia clase (reutilizable entre clases de test, o para casos
-  complejos que merecen su archivo).
-
-La regla por defecto: constantes simples, `[InlineData]`; todo lo demás, `TheoryData<>` tipado.
+Dos detalles importan. **La acción va en una lambda *dentro* del `Throws`**, porque xUnit necesita
+ejecutarla él mismo rodeada de un `try/catch` para cazar la excepción; si la llamas fuera, el choque ocurre
+fuera de la pista. Y **exige el tipo exacto**: esperar la clase padre cuando se lanza la hija falla, lo que
+te obliga a ser preciso. Para aceptar el tipo y sus subtipos existe `Assert.ThrowsAny<T>`, a conciencia.
 
 ---
 
-## 7. El criterio: cuándo parametrizar y cuándo no
+## 5. Verificar el mensaje y las propiedades
 
-La parametrización es tan cómoda que se abusa de ella. La regla fina: parametriza cuando es el mismo
-comportamiento con datos distintos, y separa cuando son comportamientos distintos. El olfato, si dudas:
-¿solo cambian los valores, o cambia lo que el test verifica?
+`Assert.Throws<T>` **devuelve la excepción capturada**, así que la guardas y la interrogas: el `ParamName`
+del parámetro inválido, un código de error, el mensaje. Con la invariante de `Cantidad`, compruebas que
+`ParamName` es `"valor"` y que el mensaje contiene "mayor que cero".
 
-El antipatrón clásico es un `[Theory]` con un parámetro `bool debeLanzar` y un `if` que, según el caso,
-comprueba un cálculo o una excepción. Eso mete lógica en el test (M3.1) y junta dos comportamientos en un
-método ilegible. Si aparece un `if` para tratar unos casos distinto de otros, tienes dos tests peleándose
-por un cuerpo. Sepáralos.
+El mensaje, siempre con `Assert.Contains` (un fragmento), nunca con `Assert.Equal` (el texto exacto): si
+afirmas el texto entero, el día que alguien corrija una tilde tu test se rompe sin que haya bug, una falsa
+alarma del airbag. Y prioriza las propiedades estructuradas (`ParamName`, un código) sobre el texto: las
+propiedades son contrato estable, el mensaje es presentación que cambia.
+
+---
+
+## 6. Excepciones en código asíncrono
+
+Si el método es `async` y lanza dentro de un `await`, la excepción viaja en un `Task` y `Assert.Throws` no
+sirve: usas `Assert.ThrowsAsync<T>` y el test pasa a `async Task`. El dominio de VentasShop es síncrono, así
+que el ejemplo del repo es una operación async **autocontenida** que ilustra la forma; el servicio real con
+pasarela se monta en M5.
+
+Y aquí está el error más caro del módulo: **el `await` olvidado**. Sin el `await` delante del `ThrowsAsync`,
+el `Task` se descarta sin esperarlo, la aserción nunca se evalúa, y el test pasa siempre, aunque el código
+no lance nada. Es un falso positivo silencioso: parece que tienes el camino de error cubierto y no tienes
+nada. La regla: `await` siempre, `async Task` nunca `async void`, y ten activado el analizador (xUnit2021).
+El laboratorio te hace vivirlo: quitas el `await`, ves el verde mentiroso, lo vuelves a poner, ves el rojo.
+
+---
+
+## 7. `Record.Exception` y qué excepciones testear
+
+Para afirmar que un código **no** lanza nada, `Record.Exception` ejecuta el código y devuelve la excepción
+o `null`. Sirve para comprobar que un pago válido no dispara ningún airbag.
+
+Y un criterio que cierra el círculo con M2.1: solo se testean las excepciones **de dominio**, las que tu
+código lanza a propósito porque representan una regla de negocio (`PedidoSinLineasException`,
+`TransicionPedidoInvalidaException`, la `ArgumentException` de una invariante). Las que saltarían por un bug
+interno —un `NullReferenceException` por no validar la entrada— no se testean: se arreglan.
 
 ---
 
 ## 8. Lo que te llevas
 
-El laboratorio
-([`material/labs/M4.2-parametrizar-descuento.md`](material/labs/M4.2-parametrizar-descuento.md)) te hace
-convertir los `[Fact]` del descuento en un `[Theory]`, eligiendo la fuente de datos adecuada. La tarjeta
-([`material/tarjetas/M4.2-theory.md`](material/tarjetas/M4.2-theory.md)) lo resume.
+El laboratorio ([`material/labs/M4.3-testear-excepciones.md`](material/labs/M4.3-testear-excepciones.md))
+cubre los caminos de error de VentasShop con `Assert.Throws` y te hace vivir el susto del `await` olvidado.
+La tarjeta ([`material/tarjetas/M4.3-excepciones.md`](material/tarjetas/M4.3-excepciones.md)) lo resume.
 
-Y queda algo pendiente que abre el siguiente submódulo: entre los casos del descuento hay algunos que no
-devuelven un número, sino que *lanzan una excepción* —un importe negativo, una cantidad de cero—. Esos no
-se comprueban con `Assert.Equal`, y mezclarlos en el `[Theory]` con un `bool` es justo el antipatrón que
-acabas de ver. Cómo se testea que un código lanza la excepción correcta es M4.3, y cierra el módulo.
+Con esto cierras el Módulo 4: sabes montar el proyecto, parametrizar y testear los caminos de error. Sobre
+lógica pura ya eres autónomo. Lo que falta es testear código que depende de otros —el `ServicioPedidos` con
+su repositorio y su pasarela—, y ese es el salto al Módulo 5: test doubles, mocking con NSubstitute y las
+aserciones fluidas de AwesomeAssertions, las dos piezas del stack aparcadas desde M4.1.

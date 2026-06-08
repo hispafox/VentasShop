@@ -1,26 +1,21 @@
-# VentasShop · M4.2 — Tests parametrizados con `[Theory]`
+# VentasShop · M4.3 — Gestión de excepciones en tests
 
-> Rama `module-04.2/tests-parametrizados`. Checkpoint del curso **TESTNET**. Aquí pasas del muro de
-> `[Fact]` repetidos a `[Theory]` parametrizado, y ves las cuatro formas de dar datos a un test.
+> Rama `module-04.3/excepciones`. Checkpoint del curso **TESTNET**. Aquí testeas que el código *falla bien*:
+> `Assert.Throws`, verificar mensaje/propiedades, `Assert.ThrowsAsync` (y el `await` olvidado) y
+> `Record.Exception`. **Cierra el Módulo 4.**
 
 ## Qué hay en esta rama
 
-- **`tests/.../ParametrizacionTests.cs`** — las **cuatro fuentes de datos** una al lado de otra sobre el
-  mismo descuento: `[InlineData]` (enteros), `[MemberData]` (`object[]`), `TheoryData<>` (tipado) y
-  `[ClassData]` (clase `CasosFronteraDescuento`). 13 tests nuevos.
-- **[`MANUAL.md`](MANUAL.md)** — la prensa y las láminas, `[Theory]`+`[InlineData]`, la limitación del
-  `decimal`, las cuatro fuentes y el criterio de cuándo parametrizar vs separar.
-- **[`material/tarjetas/M4.2-theory.md`](material/tarjetas/M4.2-theory.md)** — tarjeta de 1 página.
-- **[`material/labs/M4.2-parametrizar-descuento.md`](material/labs/M4.2-parametrizar-descuento.md)** — lab:
-  convertir los `[Fact]` del descuento en un `[Theory]` y elegir la fuente de datos.
-
-## El "antes" y el "después" (compara)
-
-- **El "antes":** `tests/.../PrimerasPruebasXunitTests.cs` — los tramos del descuento como `[Fact]`
-  separados (M4.1).
-- **El "después":** `tests/.../CalculadoraDescuentosTests.cs` — los mismos casos en `[Theory]` +
-  `TheoryData<decimal>` (ya estaba desde M2.2).
-- **La referencia de M4.2:** `tests/.../ParametrizacionTests.cs` — las cuatro fuentes juntas.
+- **`tests/.../ExcepcionesTests.cs`** — 7 tests sobre las excepciones de dominio reales:
+  `Assert.Throws<PedidoSinLineasException>`, `Assert.Throws<TransicionPedidoInvalidaException>` (con
+  verificación de mensaje), la `ArgumentException` de `Cantidad` (`ParamName "valor"` + `Contains`), la
+  `InvalidOperationException` de `Dinero`, `Assert.ThrowsAny`, `Record.Exception` (no lanza) y un
+  `Assert.ThrowsAsync` autocontenido (la forma del async; el dominio es síncrono).
+- **[`MANUAL.md`](MANUAL.md)** — el airbag/crash test, `Assert.Throws` (lambda + tipo exacto), verificar
+  mensaje (`Contains` no `Equal`), el `await` olvidado, `Record.Exception` y qué excepciones testear.
+- **[`material/tarjetas/M4.3-excepciones.md`](material/tarjetas/M4.3-excepciones.md)** — tarjeta de 1 página.
+- **[`material/labs/M4.3-testear-excepciones.md`](material/labs/M4.3-testear-excepciones.md)** — lab:
+  cubrir los caminos de error + la demo en vivo del `await` olvidado.
 
 ## Cómo se compila y se ejecuta
 
@@ -29,19 +24,21 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (52/52). `ParametrizacionTests.cs` añade 13 casos; el código de
-producción no cambia.
+Los **unitarios** salen en verde (59/59). `ExcepcionesTests.cs` añade 7 tests; el código de producción no
+cambia.
 
-## La regla del `decimal` (la que vertebra el submódulo)
+## Las excepciones de dominio (lo que se testea)
 
-`[InlineData]` solo admite constantes de compilación, y `decimal` no lo es: `[InlineData(0.10m, ...)]` no
-compila. Por eso los importes van por `[MemberData]` / `TheoryData<decimal>` / `[ClassData]`, y `[InlineData]`
-se reserva para constantes simples (enteros, enums), como en `CantidadTests.cs`.
+En [`src/VentasShop.Dominio/Excepciones/`](src/VentasShop.Dominio/Excepciones/): `PedidoSinLineasException`
+(BR-07) y `TransicionPedidoInvalidaException` (máquina de estados). Más la `ArgumentException` de `Cantidad`
+(invariante > 0) y la `InvalidOperationException` de `Dinero` (no mezclar monedas). Son contrato: airbags
+que el código dispara a propósito. Las de un bug interno no se testean.
 
-## Qué cubre (BR)
+## El `await` olvidado (la demo del módulo)
 
-No añade reglas de negocio: reusa la `CalculadoraDescuentos` (descuento por volumen + tipo de cliente con
-tope del 15%) y la `Cantidad` para enseñar **parametrización**. El SUT no cambia.
+El test async del fichero usa `Assert.ThrowsAsync` con su `await`. En el lab lo quitas y compruebas que el
+test pasa en verde sin comprobar nada (falso positivo silencioso), lo vuelves a poner y se pone rojo.
+Regla: `await` siempre, `async Task` nunca `async void`. Analizador: **xUnit2021**.
 
 ## Organización del repo
 
@@ -50,11 +47,11 @@ tope del 15%) y la `Cantidad` para enseñar **parametrización**. El SUT no camb
 
 ## Dónde estás en el curso
 
-… → `module-04.1/introduccion-xunit` → **`module-04.2/tests-parametrizados`** ← estás aquí → `module-04.3/excepciones` → …
+… → `module-04.2/tests-parametrizados` → **`module-04.3/excepciones`** ← estás aquí (cierra el Módulo 4) → `module-05.1/test-doubles` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- El antipatrón del `bool debeLanzar` + `if` (dos comportamientos en un `[Theory]`) se explica en el
-  MANUAL; su resolución —testear la excepción aparte— es M4.3.
-- ¿Cuántos casos meter? Los que marquen las técnicas de M2.2 (partición, límites, tabla de decisión).
+- El ejemplo async es **autocontenido** (operación local que falla): el dominio de VentasShop es síncrono;
+  el `ServicioPedidos` async con pasarela se construye en M5.
+- Solo se testean las **excepciones de dominio** (contrato), no las de un bug interno.
