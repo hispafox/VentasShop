@@ -1,138 +1,172 @@
-# Manual del alumno — M2.3 · Métricas de cobertura de código
+# Manual del alumno — M3.1 · El patrón Arrange-Act-Assert
 
-Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: qué mide de verdad la
-cobertura, por qué un 100% puede fallar en producción, y cómo usarla sin que te engañe.
+Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: por qué un test se tiene
+que leer de un vistazo, qué estructura lo consigue, y cómo reconocer cuándo la estás rompiendo.
 
-Tiempo de lectura: ~12 min. Submódulo M2.3 (Estrategia y Cobertura). **Aquí mides la cobertura de los
-tests reales** que ya tienes en `tests/VentasShop.TestsUnitarios/`. Cierra el Módulo 2.
+Tiempo de lectura: ~12 min. Submódulo M3.1 (Patrón AAA y Estructura de Tests). **Aquí no añades
+comportamiento al SUT**: aprendes a *escribir* los tests para que se lean y se mantengan. Abre el Módulo 3.
 
 ---
 
 ## 1. La idea en una frase
 
-La cobertura mide qué líneas de tu código **ejecutan** los tests, no si están **bien probadas**: es un
-**detector de huecos**, no un certificado de calidad.
+Un test se lee en tres golpes de vista —**preparar, actuar, comprobar**—. Si no se lee así, el problema
+está en el test, no en tu vista.
 
 ---
 
-## 2. El gancho: un 100% que falla en producción
+## 2. El gancho: el test de hace seis meses
 
-Un equipo presume de tener un 100% de cobertura. Badge verde, reuniones, da gusto. Y un martes
-cualquiera, en producción, el cálculo de un descuento se dispara y se factura mal a media cartera de
-clientes. ¿El método que falló? Tenía un 100% de cobertura, claro.
+Coge un test que escribiste hace medio año, o mejor, uno de un compañero que ya no está. Intenta
+entender en diez segundos qué comprueba. Si lo consigues, está bien estructurado. Si te toca leerlo tres
+veces y seguir variables arriba y abajo, no es un problema de comprensión: es un test mal escrito.
 
-¿Cómo es posible? Esa pregunta es todo el submódulo.
-
----
-
-## 3. Cámaras que apuntan a la pared
-
-Montas cámaras de seguridad en un edificio. La cobertura de tus cámaras es el porcentaje de superficie
-que tienen a la vista: si enfocan el 80%, tienes un 80% de "cobertura de cámaras". Y saberlo es útil,
-porque el 20% que ninguna mira es zona ciega.
-
-Pero que una cámara apunte a una zona no significa que esa zona esté vigilada. Puede estar encendida,
-contar para tu porcentaje y estar grabando una pared. Esa es la diferencia entre que una línea se
-*ejecute* en un test y que esté *comprobada*. La cobertura cuenta cámaras que apuntan, no cámaras que
-vigilan.
+Y esto importa porque un test no es solo código que se ejecuta. Es código que se **lee**, y se lee mucho
+más de lo que se escribe: cuando falla en el pipeline, cuando cambias una regla y buscas qué tocar,
+cuando entra alguien nuevo. Un test ilegible es deuda que pagas una y otra vez.
 
 ---
 
-## 4. Qué es, exactamente, y para qué sirve
+## 3. Un test es un experimento
 
-Es el porcentaje de tu código de producción que se ejecuta cuando lanzas los tests. La herramienta
-instrumenta el código, ejecuta la suite y apunta qué líneas se pisan. Mil líneas, ochocientas pisadas:
-80%; las otras doscientas son zonas ciegas.
+Un test es un experimento científico en miniatura, y los experimentos llevan tres siglos con la misma
+estructura porque funciona. El científico **prepara las condiciones** (un estado conocido), **aplica una
+sola variable** (si cambia tres cosas a la vez, no sabe cuál causó el efecto) y **mide el resultado**
+contra lo que predecía. Preparar, aplicar, medir. Eso es Arrange-Act-Assert con bata de laboratorio.
 
-Su valor real es ese: **detectar huecos**. Una zona crítica al 0% —la `CalculadoraDescuentos` sin un
-solo test— es información de oro. Lo que la cobertura no te dice es si lo cubierto está *bien* cubierto.
-
----
-
-## 5. Líneas, ramas y caminos
-
-Cuando una herramienta te da "un 80%", la pregunta es: ¿de qué?
-
-- **Cobertura de líneas:** qué porcentaje de líneas se ejecutó. La más simple y la más engañosa: una
-  línea puede esconder una decisión. Un `if` con dos condiciones, probado con un solo caso que entra,
-  da 100% de líneas y no ha probado casi nada.
-- **Cobertura de ramas (*branch coverage*):** cuenta los caminos de cada decisión. Es la que debes
-  mirar. Ese `if` tiene dos ramas; con un solo test estás al 50%, no al 100%. Si alguien cambia un
-  `&&` por un `||`, la de ramas lo caza y la de líneas no.
-- **Cobertura de caminos (*path coverage*):** todas las combinaciones de ramas. Exhaustiva e
-  impracticable en código real (explota combinatoriamente). Resérvala para la lógica más crítica.
-
-→ En el repo: la `CalculadoraDescuentos` tiene ramas de verdad (los `switch` de volumen y de tipo).
-Genera la cobertura y mira el porcentaje **de ramas**, no solo el de líneas.
+Guárdate la imagen: cuando un test sea confuso, casi siempre será porque viola uno de los tres.
 
 ---
 
-## 6. ¿Cuánto es suficiente? El 80%
+## 4. Las tres fases
 
-El 80% es una referencia sana, no un objetivo sagrado. La cobertura tiene rendimientos decrecientes:
-del 0% al 60% es barato y te quita los agujeros gordos; hasta el 80% sigue mereciendo la pena; y el
-último empujón hasta el 100% es el peor negocio, porque acabas escribiendo tests artificiales para el
-`catch` de una excepción que no puede ocurrir o para el getter más tonto.
+Todo test hace por dentro las mismas tres cosas, en el mismo orden. Sepáralas visualmente y el test se
+vuelve transparente.
 
-Y no debe ser uniforme: la lógica crítica, cerca del 100%; el andamiaje, al 40% o sin medir. Un 80%
-global puede ser excelente o un desastre según *dónde* esté ese 80%. Leer el *dónde* —clase por
-clase— es el Módulo 7.
+- **Arrange** (preparar): montas el escenario, los objetos, los datos de entrada. El *"dadas estas condiciones"*.
+- **Act** (actuar): ejecutas la acción que pruebas. Una sola. El *"cuando ocurre esto"*.
+- **Assert** (comprobar): verificas el resultado esperado. El *"entonces debería pasar esto"*.
 
----
-
-## 7. El falso positivo de cobertura
-
-Aquí está la trampa que explica al equipo del 100%. Que una línea se ejecute no significa que se
-compruebe nada: la cobertura mide ejecución, no verificación.
+Mira el contraste. Un test apelmazado, todo en una línea:
 
 ```csharp
 [Fact]
-public void CalcularTasaDescuento_NoRevienta()   // ❌ falso positivo
+public void TestDescuento()
 {
-    var calculadora = new CalculadoraDescuentos();
-    calculadora.CalcularTasaDescuento(500m, TipoCliente.Vip);
-    // ... y aquí no hay ninguna aserción
+    var calc = new CalculadoraDescuentos();
+    Assert.Equal(0.10m, calc.CalcularTasaDescuento(500m, TipoCliente.Estandar));
 }
 ```
 
-Ese test ejecuta el método entero, la herramienta lo da por cubierto, y no comprueba nada: pasa
-siempre mientras no salte una excepción. La versión sutil es aún peor, porque parece seria: una
-aserción débil como `Assert.True(tasa >= 0)` se cumple para 0%, 15% y 99%, y deja pasar cualquier bug.
+Y el mismo en AAA: arriba qué tienes, en medio qué haces, abajo qué esperas.
 
-Esto enlaza con FIRST (M1.3): un test que no termina en una aserción de verdad no se valida solo.
-Cómo se cazan estos tests —y el *mutation testing*, que mide si tus aserciones valen algo— es el M7.2.
+```csharp
+[Fact]
+public void CalcularTasaDescuento_PedidoDe500ClienteEstandar_Aplica10Porciento()
+{
+    // Arrange
+    var calculadora = new CalculadoraDescuentos();
+    decimal totalPedido = 500m;
+    var tipo = TipoCliente.Estandar;
 
-→ En el repo: `CoberturaFalsoPositivoTests.cs` tiene los dos anti-ejemplos (a propósito, en verde) y
-el contraste con una aserción de verdad. Genera la cobertura con y sin ellos y míralo con tus ojos.
+    // Act
+    decimal tasa = calculadora.CalcularTasaDescuento(totalPedido, tipo);
 
----
-
-## 8. Medir la cobertura en este repo
-
-La cobertura la da una extensión oficial y gratuita, `Microsoft.Testing.Extensions.CodeCoverage`, ya
-añadida al proyecto de tests. Se recoge en la misma ejecución de la suite:
-
-```bash
-dotnet test tests/VentasShop.TestsUnitarios -- --coverage --coverage-output-format cobertura
+    // Assert
+    Assert.Equal(0.10m, tasa);
+}
 ```
 
-El formato *cobertura* es el que trae la información de ramas. Te deja un `.cobertura.xml` en
-`TestResults/`: un XML para máquinas, no para leer a ojo. Convertirlo en un informe HTML navegable
-(ReportGenerator), mandarlo a SonarQube e *interpretarlo* es el Módulo 7. Aquí generas el dato; allí
-aprenderás a leerlo sin engañarte.
-
-> Si vienes del Coverlet de toda la vida: esa herramienta es del motor de testing clásico (VSTest) y
-> no se engancha a la plataforma nueva. El concepto no cambia; solo el comando.
+No hay que reconstruir nada: la estructura te lleva de la mano. Y eso se multiplica por cada test de la
+suite y por cada vez que alguien los lee.
 
 ---
 
-## 9. Lo que te llevas
+## 5. El SUT: a quién estás probando
 
-El laboratorio ([`material/labs/M2.3-generar-cobertura.md`](material/labs/M2.3-generar-cobertura.md))
-te hace generar la cobertura, leer el porcentaje de ramas y vivir el momento del falso positivo. La
-tarjeta [`material/tarjetas/M2.3-cobertura.md`](material/tarjetas/M2.3-cobertura.md) lo resume para el
-día a día.
+El **SUT** —*System Under Test*— es la cosa que estás probando en ese test. En el ejemplo de arriba es
+la `CalculadoraDescuentos`; el importe y el tipo de cliente son datos de apoyo.
 
-Con esto cierras el Módulo 2: ya sabes qué testear (2.1), cómo elegir los casos (2.2) y cómo medir sin
-dejarte engañar (2.3). Lo que viene es la mecánica fina de escribir tests que se lean y se mantengan,
-empezando por el patrón AAA. Es el **Módulo 3**.
+Tener claro quién es el SUT te ordena el test. El Act debería ser una llamada al SUT, una sola. Si en el
+Act llamas a tres objetos distintos, párate: o no tienes claro qué pruebas, o estás probando demasiadas
+cosas a la vez. La pregunta que desenreda un test difícil es "¿quién es aquí el SUT?".
+
+---
+
+## 6. Por qué funciona tan bien
+
+No es cosmética. Te da un **molde mental compartido**: cuando todos los tests tienen la misma forma, tu
+cerebro deja de descifrar la estructura y va al contenido. En una suite de mil tests, esa uniformidad es
+la diferencia entre una base mantenible y una que da pereza abrir.
+
+Y es un **diagnóstico**: si te sale un Act con tres acciones, o dos bloques de Assert separados por más
+acciones, el patrón te avisa de que ese test quiere ser dos. Cuando la forma AAA se te rompe, no la
+fuerces: parte el test.
+
+---
+
+## 7. "Un assert por test", con su matiz
+
+La regla famosa no significa una sola línea `Assert`: significa un solo **concepto** comprobado por
+test, una sola razón de fallo.
+
+```csharp
+[Fact]
+public void CalcularTotal_PedidoConDosUnidadesDe50_Da100Euros()
+{
+    // Arrange
+    var pedido = new Pedido(new Cliente { Nombre = "Ana" });
+    pedido.AgregarLinea(
+        new Producto { Nombre = "Teclado", PrecioUnitario = new Dinero(50m, "EUR") },
+        new Cantidad(2));
+
+    // Act
+    Dinero total = pedido.CalcularTotal();
+
+    // Assert — un concepto, dos comprobaciones que lo forman
+    Assert.Equal(100m, total.Importe);
+    Assert.Equal("EUR", total.Moneda);
+}
+```
+
+Esos dos asserts comprueban facetas de un mismo concepto ("el total salió bien"): perfecto. Lo prohibido
+es meter comprobaciones de cosas distintas en un test —que pagar funcione Y que enviar funcione—, porque
+entonces, cuando falle, no sabrás cuál se rompió.
+
+---
+
+## 8. Los cuatro errores típicos
+
+- **Varios Act en un test:** el reporte no te dice cuál falló, y si el primero revienta los demás ni se
+  ejecutan. Un comportamiento, un test.
+- **Fases mezcladas:** asserts en medio del arrange, o seguir preparando después de actuar. Sepáralas.
+- **Lógica en el test:** un `if` o un cálculo le dan al test su propia complejidad (¿quién testea el
+  test?). La variante traicionera es calcular el esperado con la *misma fórmula* del código: no prueba
+  nada. El valor esperado se escribe a mano, literal (`0.10m`).
+- **El Arrange gigante:** no rompe AAA, pero ahoga el test. Solución: Builders y Object Mother (M3.3).
+
+Si un test tiene alguno de estos cuatro, no está terminado, por mucho que pase en verde.
+
+---
+
+## 9. En este repo
+
+- `tests/VentasShop.TestsUnitarios/EstructuraAaaTests.cs` — el AAA canónico (con los comentarios de las
+  tres fases) y el caso de "un concepto, dos asserts" (`CalcularTotal`).
+- `tests/VentasShop.TestsUnitarios/PedidoEstadosTests.cs` — el ciclo de un pedido ya partido en tests
+  AAA, uno por transición, en vez de un `TestPedido` de cuatro-en-uno. Es el modelo del refactor del lab.
+
+`Assert` nativo de xUnit: las aserciones fluidas y el mocking entran en M5.
+
+---
+
+## 10. Lo que te llevas
+
+El laboratorio ([`material/labs/M3.1-refactor-a-aaa.md`](material/labs/M3.1-refactor-a-aaa.md)) te da
+tests mal estructurados —el `TestPedido` de cuatro-en-uno y uno con la fórmula en el Assert— para que
+los refactorices a AAA. La tarjeta ([`material/tarjetas/M3.1-aaa.md`](material/tarjetas/M3.1-aaa.md)) lo
+resume para el día a día.
+
+Con AAA ya tienes el esqueleto de cualquier test. Habrás notado dos cosas pendientes: por qué el nombre
+del test es tan largo y de dónde sale ese Builder que limpia el Arrange. Son los dos siguientes
+submódulos: el **nombrado** en M3.2 y la **construcción de datos** en M3.3.

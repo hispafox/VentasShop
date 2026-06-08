@@ -1,23 +1,22 @@
-# VentasShop · M2.3 — Métricas de cobertura de código
+# VentasShop · M3.1 — El patrón Arrange-Act-Assert
 
-> Rama `module-02.3/cobertura`. Checkpoint del curso **TESTNET**. Aquí **mides la cobertura** de los
-> tests que ya tienes, y aprendes a no dejarte engañar por el número. Cierra el Módulo 2.
+> Rama `module-03.1/patron-aaa`. Checkpoint del curso **TESTNET**. Aquí aprendes a **estructurar** los
+> tests con Arrange-Act-Assert para que se lean de un vistazo y se mantengan. Abre el Módulo 3.
 
 ## Qué hay en esta rama
 
-- **Cobertura activada** en `tests/VentasShop.TestsUnitarios/`: el paquete
-  `Microsoft.Testing.Extensions.CodeCoverage` (sobre MTP) en el `.csproj`. Ya puedes recoger cobertura
-  en la misma ejecución de la suite.
-- **`CoberturaFalsoPositivoTests.cs`** — el ejemplo estrella del submódulo: dos **anti-ejemplos a
-  propósito** (un test sin aserción y otro con aserción débil) que pasan en verde y "cubren" código sin
-  comprobar nada, más el **contraste** con una aserción de verdad. Es el falso positivo de cobertura.
-- Los tests de M2.2 siguen aquí (`CalculadoraDescuentosTests.cs`, `PedidoEstadosTests.cs`,
-  `CantidadTests.cs`): son los que mides.
-- **[`MANUAL.md`](MANUAL.md)** — qué mide la cobertura, líneas/ramas/caminos, el 80%, el falso positivo
-  y cómo medir en este repo.
-- **[`material/tarjetas/M2.3-cobertura.md`](material/tarjetas/M2.3-cobertura.md)** — tarjeta de 1 página.
-- **[`material/labs/M2.3-generar-cobertura.md`](material/labs/M2.3-generar-cobertura.md)** — lab:
-  generar cobertura, leer el % de ramas y vivir el falso positivo.
+- **`EstructuraAaaTests.cs`** — el ejemplo del submódulo: el **AAA canónico** (con los comentarios
+  `// Arrange / // Act / // Assert` y nombre que habla) y el caso de **"un concepto, dos asserts"**
+  (`CalcularTotal`, que comprueba importe y moneda como facetas de lo mismo).
+- **`PedidoEstadosTests.cs`** sigue aquí y es el modelo del refactor: el ciclo de un pedido **partido**
+  en tests AAA, uno por transición, en vez de un `TestPedido` de cuatro-en-uno.
+- Los demás tests de M2 siguen aquí (`CalculadoraDescuentosTests.cs`, `CantidadTests.cs`,
+  `CoberturaFalsoPositivoTests.cs`): el código de producción no cambia entre ramas, solo crecen los tests.
+- **[`MANUAL.md`](MANUAL.md)** — las tres fases, el SUT, "un assert por test" con su matiz y los cuatro
+  errores típicos.
+- **[`material/tarjetas/M3.1-aaa.md`](material/tarjetas/M3.1-aaa.md)** — tarjeta de 1 página.
+- **[`material/labs/M3.1-refactor-a-aaa.md`](material/labs/M3.1-refactor-a-aaa.md)** — lab: refactorizar
+  un `TestPedido` de cuatro-en-uno y un test con la fórmula en el Assert a AAA.
 
 ## Cómo se compila y se ejecuta
 
@@ -26,20 +25,13 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (25/25). Para recoger cobertura con información de ramas:
+Los **unitarios** salen en verde. `EstructuraAaaTests.cs` añade dos tests AAA sobre el código que ya
+existe; no hace falta cobertura para este submódulo (eso fue M2.3).
 
-```bash
-dotnet test tests/VentasShop.TestsUnitarios -- --coverage --coverage-output-format cobertura
-```
+## Qué cubre (BR)
 
-Deja un `.cobertura.xml` en `TestResults/`. Leer e interpretar ese informe (ReportGenerator,
-SonarQube) es el Módulo 7; aquí solo lo **generas**.
-
-## Cobertura por reglas (BR)
-
-Esta rama mide la cobertura de lo ya cubierto en M2.2: BR-01..BR-05 (descuento por volumen y tipo +
-tope), BR-07, BR-08 y las transiciones del ciclo de vida del pedido. No añade reglas de negocio
-nuevas: el código de producción no cambia entre ramas, solo crecen los tests.
+No añade reglas de negocio nuevas: reusa el descuento (BR-01..BR-05) y el cálculo del total del pedido
+para enseñar **estructura de tests**, no comportamiento. El SUT no cambia respecto a M2.
 
 ## Organización del repo
 
@@ -48,11 +40,11 @@ nuevas: el código de producción no cambia entre ramas, solo crecen los tests.
 
 ## Dónde estás en el curso
 
-… → `module-02.2/tecnicas-diseno` → **`module-02.3/cobertura`** ← estás aquí (cierra el Módulo 2) → `module-03.1/patron-aaa` → …
+… → `module-02.3/cobertura` → **`module-03.1/patron-aaa`** ← estás aquí (abre el Módulo 3) → `module-03.2/nombrado` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
 - Convención: `Assert` nativo de xUnit (las aserciones fluidas llegan en M5.3; el mocking, en M5.2).
-- Cobertura vía `Microsoft.Testing.Extensions.CodeCoverage` (MTP). Coverlet es de VSTest y NO integra
-  con MTP: no se usa aquí. ReportGenerator y el análisis a fondo, en M7.
+- El `PedidoBuilder` que limpia el Arrange aparece en el temario como anticipo: se construye en **M3.3**.
+  Aquí los tests montan el escenario a mano o reutilizan los helpers existentes.
