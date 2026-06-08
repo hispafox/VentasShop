@@ -1,124 +1,138 @@
-# Manual del alumno — M2.2 · Técnicas de diseño de casos
+# Manual del alumno — M2.3 · Métricas de cobertura de código
 
-Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: cómo elegir, con
-método, qué puñado de casos cubre de verdad un comportamiento — en vez de probar valores al azar.
+Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: qué mide de verdad la
+cobertura, por qué un 100% puede fallar en producción, y cómo usarla sin que te engañe.
 
-Tiempo de lectura: ~12 min. Submódulo M2.2 (Estrategia y Cobertura). **Aquí ya hay tests reales**: los
-encuentras en `tests/VentasShop.TestsUnitarios/` y se ejecutan con `dotnet test`.
+Tiempo de lectura: ~12 min. Submódulo M2.3 (Estrategia y Cobertura). **Aquí mides la cobertura de los
+tests reales** que ya tienes en `tests/VentasShop.TestsUnitarios/`. Cierra el Módulo 2.
 
 ---
 
 ## 1. La idea en una frase
 
-No se prueban valores al azar: **cuatro técnicas te dicen qué casos cubren de verdad el comportamiento
-y cuáles son repetir lo mismo con otro número.**
+La cobertura mide qué líneas de tu código **ejecutan** los tests, no si están **bien probadas**: es un
+**detector de huecos**, no un certificado de calidad.
 
 ---
 
-## 2. El gancho: diez tests y el 500 que falta
+## 2. El gancho: un 100% que falla en producción
 
-Un compañero ha testeado el cálculo de descuentos. Está contento, ha escrito un montón de tests:
-pedido de 100 €, de 200 €, de 300 €… diez tests, todos del mismo tramo, todos comprobando lo mismo.
-Le preguntas: "¿y el de 500 € clavado?". Silencio. No está. Justo el borde donde cambia la regla, el
-único caso que escondía un bug, se quedó fuera. Diez tests de trabajo, cero protección donde importaba.
+Un equipo presume de tener un 100% de cobertura. Badge verde, reuniones, da gusto. Y un martes
+cualquiera, en producción, el cálculo de un descuento se dispara y se factura mal a media cartera de
+clientes. ¿El método que falló? Tenía un 100% de cobertura, claro.
 
-Le falta un método para elegir casos. Porque los valores posibles son infinitos y tu tiempo no.
-
----
-
-## 3. Catar la sopa sin bebértela entera
-
-Cocinas una olla y quieres saber si está de sal. ¿Te la bebes entera? No: remueves y pruebas una
-cucharada — esa cucharada representa el todo. Acabas de hacer **partición en clases de equivalencia**.
-Pero un buen cocinero sabe que hay sitios que no se comportan como el resto: el fondo, donde la sal se
-posa; el borde pegado al fuego. Esos los pruebas aparte: **análisis de valores límite**. Si la receta
-combina sal, picante y ácido, pruebas las combinaciones que importan: **tabla de decisión**. Y si el
-plato se hace por fases y el orden manda: **transición de estados**.
-
-Cuatro cucharas para la misma olla. El resto es saber cuándo usar cada una.
+¿Cómo es posible? Esa pregunta es todo el submódulo.
 
 ---
 
-## 4. Partición en clases de equivalencia
+## 3. Cámaras que apuntan a la pared
 
-Si un grupo de valores se va a comportar igual, te basta con probar uno. El descuento por volumen
-tiene tres tramos (< 100, 100–500, ≥ 500): tres comportamientos distintos, tres tests bien elegidos.
-Los diez tests del compañero caían todos en la clase media — diez cucharadas del mismo punto.
+Montas cámaras de seguridad en un edificio. La cobertura de tus cámaras es el porcentaje de superficie
+que tienen a la vista: si enfocan el 80%, tienes un 80% de "cobertura de cámaras". Y saberlo es útil,
+porque el 20% que ninguna mira es zona ciega.
 
-→ En el repo: `CalculadoraDescuentosTests.CasosPorTramo` (un representante por tramo).
+Pero que una cámara apunte a una zona no significa que esa zona esté vigilada. Puede estar encendida,
+contar para tu porcentaje y estar grabando una pared. Esa es la diferencia entre que una línea se
+*ejecute* en un test y que esté *comprobada*. La cobertura cuenta cámaras que apuntan, no cámaras que
+vigilan.
 
-## 5. Análisis de valores límite
+---
 
-Los bugs se concentran en las fronteras: el `>` que debía ser `>=`, el cero, el último elemento. El
-centro (250 €) no esconde decisiones; la frontera de los 500 € sí: ¿`>= 500` o `> 500`? Para cada
-frontera, prueba el límite exacto y sus vecinos: 499,99 / 500,00 / 500,01.
+## 4. Qué es, exactamente, y para qué sirve
 
-→ En el repo: `CalculadoraDescuentosTests.CasosFrontera`. El caso del **500,00** es el que se pondría
-rojo si alguien cambia `>=` por `>`.
+Es el porcentaje de tu código de producción que se ejecuta cuando lanzas los tests. La herramienta
+instrumenta el código, ejecuta la suite y apunta qué líneas se pisan. Mil líneas, ochocientas pisadas:
+80%; las otras doscientas son zonas ciegas.
 
-> **Detalle de xUnit que cuesta caro:** un `[InlineData(...)]` **no admite constantes `decimal`** (los
-> literales en un atributo son `double`, y xUnit revienta al convertirlos). Por eso los casos con
-> decimales van en un **`TheoryData<decimal, decimal>`** con literales `m`, que es código normal y sí
-> compila. Con enteros, `[InlineData]` vale (lo ves en `CantidadTests`).
+Su valor real es ese: **detectar huecos**. Una zona crítica al 0% —la `CalculadoraDescuentos` sin un
+solo test— es información de oro. Lo que la cobertura no te dice es si lo cubierto está *bien* cubierto.
 
-## 6. Tabla de decisión
+---
 
-Cuando el resultado sale de **combinar** condiciones, lo que falla suele ser la combinación. El
-descuento depende del importe **y** del tipo de cliente:
+## 5. Líneas, ramas y caminos
 
-| Importe \ Tipo | Estándar | Premium (+3%) | VIP (+5%) |
-|---|---|---|---|
-| < 100 € | 0% | 3% | 5% |
-| 100–500 € | 5% | 8% | 10% |
-| ≥ 500 € | 10% | 13% | **15% (tope)** |
+Cuando una herramienta te da "un 80%", la pregunta es: ¿de qué?
 
-Esa celda de abajo a la derecha es la importante: 10% + 5% = 15%, justo en el tope (BR-05). Un test
-ingenuo que prueba importe y tipo por separado nunca la toca.
+- **Cobertura de líneas:** qué porcentaje de líneas se ejecutó. La más simple y la más engañosa: una
+  línea puede esconder una decisión. Un `if` con dos condiciones, probado con un solo caso que entra,
+  da 100% de líneas y no ha probado casi nada.
+- **Cobertura de ramas (*branch coverage*):** cuenta los caminos de cada decisión. Es la que debes
+  mirar. Ese `if` tiene dos ramas; con un solo test estás al 50%, no al 100%. Si alguien cambia un
+  `&&` por un `||`, la de ramas lo caza y la de líneas no.
+- **Cobertura de caminos (*path coverage*):** todas las combinaciones de ramas. Exhaustiva e
+  impracticable en código real (explota combinatoriamente). Resérvala para la lógica más crítica.
 
-→ En el repo: `CalculadoraDescuentosTests.CasosImporteYTipo` (incluye el tope).
+→ En el repo: la `CalculadoraDescuentos` tiene ramas de verdad (los `switch` de volumen y de tipo).
+Genera la cobertura y mira el porcentaje **de ramas**, no solo el de líneas.
 
-## 7. Transición de estados
+---
 
-Un `Pedido` no es un dato suelto: viaja por una vida, y no todas las transiciones valen.
+## 6. ¿Cuánto es suficiente? El 80%
 
-```mermaid
-stateDiagram-v2
-    [*] --> Borrador
-    Borrador --> Confirmado: Confirmar()
-    Confirmado --> Pagado: Pagar()
-    Pagado --> Enviado: Enviar()
-    Enviado --> Entregado: Entregar()
-    Borrador --> Cancelado: Cancelar()
-    Confirmado --> Cancelado: Cancelar()
-    Pagado --> Cancelado: Cancelar()
-    Entregado --> [*]
-    Cancelado --> [*]
+El 80% es una referencia sana, no un objetivo sagrado. La cobertura tiene rendimientos decrecientes:
+del 0% al 60% es barato y te quita los agujeros gordos; hasta el 80% sigue mereciendo la pena; y el
+último empujón hasta el 100% es el peor negocio, porque acabas escribiendo tests artificiales para el
+`catch` de una excepción que no puede ocurrir o para el getter más tonto.
+
+Y no debe ser uniforme: la lógica crítica, cerca del 100%; el andamiaje, al 40% o sin medir. Un 80%
+global puede ser excelente o un desastre según *dónde* esté ese 80%. Leer el *dónde* —clase por
+clase— es el Módulo 7.
+
+---
+
+## 7. El falso positivo de cobertura
+
+Aquí está la trampa que explica al equipo del 100%. Que una línea se ejecute no significa que se
+compruebe nada: la cobertura mide ejecución, no verificación.
+
+```csharp
+[Fact]
+public void CalcularTasaDescuento_NoRevienta()   // ❌ falso positivo
+{
+    var calculadora = new CalculadoraDescuentos();
+    calculadora.CalcularTasaDescuento(500m, TipoCliente.Vip);
+    // ... y aquí no hay ninguna aserción
+}
 ```
 
-La técnica dice: prueba las transiciones **válidas** (que funcionen) y, sobre todo, las **inválidas**
-(que se rechacen). Enviar un pedido sin pagar tiene que fallar — si falta ese test, el día que alguien
-se salte el pago hay un problema de dinero de verdad.
+Ese test ejecuta el método entero, la herramienta lo da por cubierto, y no comprueba nada: pasa
+siempre mientras no salte una excepción. La versión sutil es aún peor, porque parece seria: una
+aserción débil como `Assert.True(tasa >= 0)` se cumple para 0%, 15% y 99%, y deja pasar cualquier bug.
 
-→ En el repo: `PedidoEstadosTests` (válidas del camino principal + inválidas + BR-07: pagar sin líneas).
+Esto enlaza con FIRST (M1.3): un test que no termina en una aserción de verdad no se valida solo.
+Cómo se cazan estos tests —y el *mutation testing*, que mide si tus aserciones valen algo— es el M7.2.
+
+→ En el repo: `CoberturaFalsoPositivoTests.cs` tiene los dos anti-ejemplos (a propósito, en verde) y
+el contraste con una aserción de verdad. Genera la cobertura con y sin ellos y míralo con tus ojos.
 
 ---
 
-## 8. Cuál usar y cuándo (no eliges una)
+## 8. Medir la cobertura en este repo
 
-Casi nunca eliges una; las encadenas. Ante un método con entradas: **partición** para saber cuántos
-comportamientos hay → **valores límite** para afinar el valor de cada clase → **tabla de decisión** si
-el resultado combina varias entradas → **transición de estados** si lo que pruebas tiene ciclo de vida.
+La cobertura la da una extensión oficial y gratuita, `Microsoft.Testing.Extensions.CodeCoverage`, ya
+añadida al proyecto de tests. Se recoge en la misma ejecución de la suite:
+
+```bash
+dotnet test tests/VentasShop.TestsUnitarios -- --coverage --coverage-output-format cobertura
+```
+
+El formato *cobertura* es el que trae la información de ramas. Te deja un `.cobertura.xml` en
+`TestResults/`: un XML para máquinas, no para leer a ojo. Convertirlo en un informe HTML navegable
+(ReportGenerator), mandarlo a SonarQube e *interpretarlo* es el Módulo 7. Aquí generas el dato; allí
+aprenderás a leerlo sin engañarte.
+
+> Si vienes del Coverlet de toda la vida: esa herramienta es del motor de testing clásico (VSTest) y
+> no se engancha a la plataforma nueva. El concepto no cambia; solo el comando.
 
 ---
 
 ## 9. Lo que te llevas
 
-El laboratorio ([`material/labs/M2.2-tecnicas-de-diseno.md`](material/labs/M2.2-tecnicas-de-diseno.md))
-te hace recorrer las cuatro sobre VentasShop. La tarjeta
-[`material/tarjetas/M2.2-tecnicas.md`](material/tarjetas/M2.2-tecnicas.md) las resume para el día a día.
+El laboratorio ([`material/labs/M2.3-generar-cobertura.md`](material/labs/M2.3-generar-cobertura.md))
+te hace generar la cobertura, leer el porcentaje de ramas y vivir el momento del falso positivo. La
+tarjeta [`material/tarjetas/M2.3-cobertura.md`](material/tarjetas/M2.3-cobertura.md) lo resume para el
+día a día.
 
-Ejecuta los tests de esta rama con `dotnet test tests/VentasShop.TestsUnitarios` y míralos en verde.
-
-Una cosa queda pendiente y abre el siguiente submódulo: ya tienes tus tests, pero ¿cómo sabes si son
-*suficientes*? ¿Cómo mides cuánto de tu código tocan de verdad? Hay una métrica que promete responder
-—la cobertura— y que, mal entendida, hace más daño que bien. Es el **M2.3**.
+Con esto cierras el Módulo 2: ya sabes qué testear (2.1), cómo elegir los casos (2.2) y cómo medir sin
+dejarte engañar (2.3). Lo que viene es la mecánica fina de escribir tests que se lean y se mantengan,
+empezando por el patrón AAA. Es el **Módulo 3**.

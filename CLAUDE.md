@@ -17,8 +17,10 @@ el código compila y los tests pasan, y los capítulos del curso enlazan aquí. 
 3. **El código de producción vive en `starter` y no cambia entre ramas.** Lo que crece son los
    **tests**, submódulo a submódulo. Excepción: el legacy del Módulo 8.
 4. **Stack y convención por módulo.** xUnit v3 + `Assert` nativo hasta M5.3; NSubstitute entra en
-   M5.2; AwesomeAssertions en M5.3; Coverlet/ReportGenerator en M7; EF Core InMemory en M6.2 y
+   M5.2; AwesomeAssertions en M5.3; cobertura (`Microsoft.Testing.Extensions.CodeCoverage`, sobre MTP)
+   en M2.3 y a fondo (ReportGenerator, `dotnet-coverage`) en M7; EF Core InMemory en M6.2 y
    Testcontainers en M6.3. Cada rama refleja la progresión: no metas una librería antes de su módulo.
+   Coverlet (collector/msbuild) es de VSTest y NO integra con MTP: no se usa en este repo.
 5. **Trazabilidad regla → test.** Cada test referencia su `BR-XX` (ver README).
 6. **Prosa en castellano humano.** Los `MANUAL.md` y `README.md` de cada rama se redactan con el
    skill `escritura-humana` (en `.claude/skills/`) y en **«tú» singular**. Tras redactar, grep de
