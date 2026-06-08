@@ -1,97 +1,116 @@
-# Manual del alumno — M4.3 · Gestión de excepciones en tests
+# Manual del alumno — M5.1 · Test doubles (Dummy, Stub, Spy, Mock y Fake)
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué que tu código falle
-bien es una funcionalidad como cualquier otra, y cómo se prueba un mecanismo de seguridad que solo se
-activa cuando algo va mal.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué necesitas sustituir
+las dependencias de tu código para poder testearlo, qué tipos de sustituto existen y cómo se eligen con
+criterio. Abre el Módulo 5.
 
-Tiempo de lectura: ~12 min. Submódulo M4.3 (Tests Unitarios con xUnit.net). Cierra el Módulo 4.
+Tiempo de lectura: ~12 min. Submódulo M5.1 (Mocking, Aislamiento y Aserciones Fluidas). Es **conceptual**:
+la sintaxis con NSubstitute es M5.2.
 
 ---
 
 ## 1. La idea en una frase
 
-Que el código falle bien —rechazar la operación, lanzar la excepción correcta, dejar el sistema coherente—
-es una funcionalidad que diseñas a propósito. Y como toda funcionalidad, se testea.
+Un test double es un sustituto controlado de una dependencia, para que puedas probar tu código aislado,
+rápido y sin efectos reales. Como el especialista de cine que rueda la escena peligrosa: ocupa el sitio
+del actor, hace lo que la escena necesita, y nadie se quema.
 
 ---
 
-## 2. No se puede con `Assert.Equal`
+## 2. El problema: código que depende de otros
 
-Si un método lanza una excepción, no hay valor de retorno que comparar: la excepción interrumpe la
-ejecución antes de devolver nada. Y si salta sin que la esperes, el test falla por la razón equivocada,
-como un error inesperado. Necesitas decirle a xUnit "espero que esto lance una excepción, y si NO la lanza,
-*eso* es el fallo". Aquí el éxito es que algo explote.
-
----
-
-## 3. Probar el airbag
-
-¿Cómo se prueba el airbag de un coche? No esperando a tener un accidente: con un *crash test*, provocando
-el choque en condiciones controladas para comprobar que el mecanismo salta. Las excepciones de dominio
-—"no se puede pagar un pedido sin líneas"— son los airbags de tu código, y se prueban igual: le pasas la
-entrada inválida a propósito y verificas que lanza la excepción correcta, con el mensaje correcto.
+Hasta ahora testeabas lógica pura —`CalculadoraDescuentos`, `Cantidad`, las transiciones del pedido—: le
+das una entrada, te da una salida, no toca el mundo. El `ServicioPedidos` no es así. Para pagar un pedido
+necesita un repositorio (base de datos), una pasarela (que *cobra dinero de verdad*), un reloj (la hora del
+sistema) y un registro de auditoría. Testearlo tal cual sería lento, frágil, peligroso y no determinista.
+Y aun así tiene lógica que importa: el orden de las operaciones, que un rechazo de la pasarela no marque el
+pedido como pagado (BR-09), que se registre la auditoría (BR-10). Esa lógica hay que probarla.
 
 ---
 
-## 4. `Assert.Throws<T>`: provocar el choque
+## 3. Los dobles de cine
 
-Le pasas el tipo de excepción esperado y un trozo de código; pasa si lanza *exactamente* esa excepción.
-Mira [`tests/.../ExcepcionesTests.cs`](tests/VentasShop.TestsUnitarios/ExcepcionesTests.cs).
-
-Dos detalles importan. **La acción va en una lambda *dentro* del `Throws`**, porque xUnit necesita
-ejecutarla él mismo rodeada de un `try/catch` para cazar la excepción; si la llamas fuera, el choque ocurre
-fuera de la pista. Y **exige el tipo exacto**: esperar la clase padre cuando se lanza la hija falla, lo que
-te obliga a ser preciso. Para aceptar el tipo y sus subtipos existe `Assert.ThrowsAny<T>`, a conciencia.
+"Test double" se llama así por los *stunt doubles*. Cuando hay que saltar de un coche en llamas, no se
+quema al actor: viene un especialista que lo sustituye en ese plano. Tus dependencias en un test son lo
+mismo: traes un doble que ocupa el sitio de la pasarela, hace lo que la escena necesita ("el pago fue bien"
+o "el pago falló"), y te deja rodar la escena rápido, sin riesgo y bajo control.
 
 ---
 
-## 5. Verificar el mensaje y las propiedades
+## 4. Por qué necesitas dobles (cuatro motivos)
 
-`Assert.Throws<T>` **devuelve la excepción capturada**, así que la guardas y la interrogas: el `ParamName`
-del parámetro inválido, un código de error, el mensaje. Con la invariante de `Cantidad`, compruebas que
-`ParamName` es `"valor"` y que el mensaje contiene "mayor que cero".
-
-El mensaje, siempre con `Assert.Contains` (un fragmento), nunca con `Assert.Equal` (el texto exacto): si
-afirmas el texto entero, el día que alguien corrija una tilde tu test se rompe sin que haya bug, una falsa
-alarma del airbag. Y prioriza las propiedades estructuradas (`ParamName`, un código) sobre el texto: las
-propiedades son contrato estable, el mensaje es presentación que cambia.
-
----
-
-## 6. Excepciones en código asíncrono
-
-Si el método es `async` y lanza dentro de un `await`, la excepción viaja en un `Task` y `Assert.Throws` no
-sirve: usas `Assert.ThrowsAsync<T>` y el test pasa a `async Task`. El dominio de VentasShop es síncrono, así
-que el ejemplo del repo es una operación async **autocontenida** que ilustra la forma; el servicio real con
-pasarela se monta en M5.
-
-Y aquí está el error más caro del módulo: **el `await` olvidado**. Sin el `await` delante del `ThrowsAsync`,
-el `Task` se descarta sin esperarlo, la aserción nunca se evalúa, y el test pasa siempre, aunque el código
-no lance nada. Es un falso positivo silencioso: parece que tienes el camino de error cubierto y no tienes
-nada. La regla: `await` siempre, `async Task` nunca `async void`, y ten activado el analizador (xUnit2021).
-El laboratorio te hace vivirlo: quitas el `await`, ves el verde mentiroso, lo vuelves a poner, ves el rojo.
+- **Aislamiento** — si el test del `ServicioPedidos` falla, quieres saber que el bug es tuyo, no de la base
+  de datos. Sustituyendo las dependencias, aíslas el SUT.
+- **Velocidad** — una base de datos o una red tardan; multiplica por mil tests y la suite pasa de segundos
+  a minutos. Un doble responde en microsegundos.
+- **Determinismo** — el reloj real da una hora distinta cada vez; eso vuelve el test *flaky*. Un doble da
+  siempre la misma respuesta controlada.
+- **Evitar efectos reales** — la pasarela *cobra*. No quieres que tu suite, al ejecutarse mil veces al día,
+  dispare mil cobros. El doble simula el efecto sin provocarlo. Este es el coche en llamas.
 
 ---
 
-## 7. `Record.Exception` y qué excepciones testear
+## 5. La taxonomía: cinco tipos
 
-Para afirmar que un código **no** lanza nada, `Record.Exception` ejecuta el código y devuelve la excepción
-o `null`. Sirve para comprobar que un pago válido no dispara ningún airbag.
+De menos a más sofisticado, cada uno con su papel en el rodaje:
 
-Y un criterio que cierra el círculo con M2.1: solo se testean las excepciones **de dominio**, las que tu
-código lanza a propósito porque representan una regla de negocio (`PedidoSinLineasException`,
-`TransicionPedidoInvalidaException`, la `ArgumentException` de una invariante). Las que saltarían por un bug
-interno —un `NullReferenceException` por no validar la entrada— no se testean: se arreglan.
+- **Dummy** — relleno de un parámetro obligatorio que la ruta no usa (el extra de cartón al fondo).
+- **Stub** — devuelve valores prefijados; no verificas nada sobre él (el doble que recita su línea). El
+  `RelojFijo` que siempre da "1 de enero, 12:00".
+- **Spy** — hace su papel y, además, anota cómo se le llamó, para mirarlo *después* (el que toma notas). El
+  `LoggerEspia` que captura los apuntes de auditoría.
+- **Mock** — configurado con expectativas; verificar la llamada *es* el objetivo del test (el especialista
+  con guion estricto). La pasarela sobre la que compruebas "se cobró el importe exacto, una vez".
+- **Fake** — implementación de verdad pero reducida (el que de verdad hace el salto). El
+  `RepositorioPedidosEnMemoria`: guarda y recupera con un diccionario en RAM, sin base de datos.
+
+La distinción que más cuesta es **stub vs. mock**, y es conceptual, no de sintaxis.
 
 ---
 
-## 8. Lo que te llevas
+## 6. Verificación de estado vs. de interacción
 
-El laboratorio ([`material/labs/M4.3-testear-excepciones.md`](material/labs/M4.3-testear-excepciones.md))
-cubre los caminos de error de VentasShop con `Assert.Throws` y te hace vivir el susto del `await` olvidado.
-La tarjeta ([`material/tarjetas/M4.3-excepciones.md`](material/tarjetas/M4.3-excepciones.md)) lo resume.
+- **Estado** — compruebas el *resultado*: `Assert.Equal(EstadoPedido.Pagado, pedido.Estado)`. Es lo que
+  hemos hecho todo el curso. El stub solo sirve de apoyo para llegar a ese estado.
+- **Interacción** — compruebas que el SUT *llamó* a una dependencia de cierta forma: "¿se intentó cobrar?",
+  "¿se guardó?", "¿se registró el log?". Aquí no hay estado propio que mirar, así que verificas la llamada.
 
-Con esto cierras el Módulo 4: sabes montar el proyecto, parametrizar y testear los caminos de error. Sobre
-lógica pura ya eres autónomo. Lo que falta es testear código que depende de otros —el `ServicioPedidos` con
-su repositorio y su pasarela—, y ese es el salto al Módulo 5: test doubles, mocking con NSubstitute y las
-aserciones fluidas de AwesomeAssertions, las dos piezas del stack aparcadas desde M4.1.
+**Regla:** prefiere estado siempre que puedas; usa interacción solo cuando el comportamiento que importa es
+la llamada en sí. El estado no se acopla a *cómo* el código consigue el resultado, solo a *qué* resultado
+consigue (M2.1: testea comportamiento, no implementación). Abusar de la interacción acopla el test a la
+implementación y lo rompe en cada refactor.
+
+---
+
+## 7. La regla de oro y el reparto en VentasShop
+
+**Usa el doble más simple que satisfaga el test.** Stub si solo necesitas un valor; dummy si solo rellenas
+un hueco; mock solo cuando la interacción es lo que pruebas. Cada nivel de más es acoplamiento.
+
+En el `ServicioPedidos`, cada dependencia ejemplifica un tipo: el `IReloj` es **stub**, la `IPasarelaPago`
+**mock**, el `ILogger` **spy**, y el `IRepositorioPedidos` es **stub**, **mock** o **fake** según el test.
+Es la misma clase: el tipo de doble lo decide el test, no la dependencia.
+
+---
+
+## 8. Hechos a mano (lo que NSubstitute te ahorra)
+
+En este repo los cuatro dobles están escritos **a mano**, sin librería, en
+[`tests/.../Dobles/`](tests/VentasShop.TestsUnitarios/Dobles/). Mira
+[`tests/.../DoblesArtesanalesTests.cs`](tests/VentasShop.TestsUnitarios/DoblesArtesanalesTests.cs): el
+`ServicioPedidos` testeado con esos dobles y `Assert` nativo. Un fake o un stub no necesitan librería; se
+escriben una vez y se reutilizan, como los Builders de M3.3. Lo verás: montar cada doble a mano es trabajo.
+**Eso** es lo que NSubstitute reduce a dos líneas en M5.2 — y por eso primero lo ves por dentro.
+
+---
+
+## 9. Lo que te llevas
+
+El laboratorio ([`material/labs/M5.1-elegir-doble.md`](material/labs/M5.1-elegir-doble.md)) es **de
+criterio**: para tres escenarios del `ServicioPedidos`, decides el doble de cada dependencia y si verificas
+estado o interacción. La tarjeta ([`material/tarjetas/M5.1-test-doubles.md`](material/tarjetas/M5.1-test-doubles.md))
+lo resume.
+
+Con el criterio claro, M5.2 baja a la sintaxis: cómo se crean estos dobles con NSubstitute
+(`Substitute.For<>`, `Received()`) y cómo el montaje de hoy se queda en dos líneas. Las aserciones fluidas
+de AwesomeAssertions llegan en M5.3.
