@@ -1,22 +1,18 @@
-# VentasShop · M3.1 — El patrón Arrange-Act-Assert
+# VentasShop · M3.2 — Convenciones de nombrado de tests
 
-> Rama `module-03.1/patron-aaa`. Checkpoint del curso **TESTNET**. Aquí aprendes a **estructurar** los
-> tests con Arrange-Act-Assert para que se lean de un vistazo y se mantengan. Abre el Módulo 3.
+> Rama `module-03.2/nombrado`. Checkpoint del curso **TESTNET**. Aquí aprendes a **nombrar** los tests
+> para que, al fallar, te digan qué se rompió sin abrir el código. Formato `Metodo_Escenario_ResultadoEsperado`.
 
 ## Qué hay en esta rama
 
-- **`EstructuraAaaTests.cs`** — el ejemplo del submódulo: el **AAA canónico** (con los comentarios
-  `// Arrange / // Act / // Assert` y nombre que habla) y el caso de **"un concepto, dos asserts"**
-  (`CalcularTotal`, que comprueba importe y moneda como facetas de lo mismo).
-- **`PedidoEstadosTests.cs`** sigue aquí y es el modelo del refactor: el ciclo de un pedido **partido**
-  en tests AAA, uno por transición, en vez de un `TestPedido` de cuatro-en-uno.
-- Los demás tests de M2 siguen aquí (`CalculadoraDescuentosTests.cs`, `CantidadTests.cs`,
-  `CoberturaFalsoPositivoTests.cs`): el código de producción no cambia entre ramas, solo crecen los tests.
-- **[`MANUAL.md`](MANUAL.md)** — las tres fases, el SUT, "un assert por test" con su matiz y los cuatro
-  errores típicos.
-- **[`material/tarjetas/M3.1-aaa.md`](material/tarjetas/M3.1-aaa.md)** — tarjeta de 1 página.
-- **[`material/labs/M3.1-refactor-a-aaa.md`](material/labs/M3.1-refactor-a-aaa.md)** — lab: refactorizar
-  un `TestPedido` de cuatro-en-uno y un test con la fórmula en el Assert a AAA.
+- **[`material/labs/M3.2-renombrar-tests.md`](material/labs/M3.2-renombrar-tests.md)** — el lab del
+  submódulo: una batería de cinco tests con nombres malos (vago, describe la implementación, uno que
+  miente) para renombrar al formato y leer la lista resultante como especificación.
+- **[`material/tarjetas/M3.2-nombrado.md`](material/tarjetas/M3.2-nombrado.md)** — tarjeta de 1 página.
+- **[`MANUAL.md`](MANUAL.md)** — el nombre como titular, el formato y su conexión con AAA, el test como
+  documentación viva, convenciones alternativas y los antipatrones de nombre.
+- Los tests reales del repo ya siguen el formato y son el **modelo** del lab: `CalculadoraDescuentosTests.cs`,
+  `PedidoEstadosTests.cs`, `EstructuraAaaTests.cs`. Léelos como spec.
 
 ## Cómo se compila y se ejecuta
 
@@ -25,13 +21,14 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde. `EstructuraAaaTests.cs` añade dos tests AAA sobre el código que ya
-existe; no hace falta cobertura para este submódulo (eso fue M2.3).
+Los **unitarios** salen en verde (27/27). Este submódulo es **conceptual** (sobre nombres): no añade
+tests nuevos al proyecto — el material es el lab de renombrado y la suite existente como ejemplo de
+buenos nombres.
 
 ## Qué cubre (BR)
 
-No añade reglas de negocio nuevas: reusa el descuento (BR-01..BR-05) y el cálculo del total del pedido
-para enseñar **estructura de tests**, no comportamiento. El SUT no cambia respecto a M2.
+No añade reglas de negocio ni tests nuevos: usa la suite existente (descuento BR-01..BR-05, ciclo del
+pedido) como ejemplo de nombres que se leen como especificación. El SUT no cambia.
 
 ## Organización del repo
 
@@ -40,11 +37,12 @@ para enseñar **estructura de tests**, no comportamiento. El SUT no cambia respe
 
 ## Dónde estás en el curso
 
-… → `module-02.3/cobertura` → **`module-03.1/patron-aaa`** ← estás aquí (abre el Módulo 3) → `module-03.2/nombrado` → …
+… → `module-03.1/patron-aaa` → **`module-03.2/nombrado`** ← estás aquí → `module-03.3/builders-object-mother` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Convención: `Assert` nativo de xUnit (las aserciones fluidas llegan en M5.3; el mocking, en M5.2).
-- El `PedidoBuilder` que limpia el Arrange aparece en el temario como anticipo: se construye en **M3.3**.
-  Aquí los tests montan el escenario a mano o reutilizan los helpers existentes.
+- El método del nombre arranca con su nombre real del código (`CalcularTasaDescuento`, `Pagar`, `Enviar`).
+  El ejemplo `Should_…` del temario se deja en inglés a propósito (ilustra la convención inglesa ajena).
+- Construir los datos sin que el Arrange ahogue el test (Builders / Object Mother) es **M3.3**, que cierra
+  el módulo.
