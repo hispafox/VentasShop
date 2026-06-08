@@ -1,25 +1,20 @@
-# VentasShop · M5.1 — Test doubles (Dummy, Stub, Spy, Mock y Fake)
+# VentasShop · M5.2 — Mocking con NSubstitute
 
-> Rama `module-05.1/test-doubles`. Checkpoint del curso **TESTNET**. Aquí das el salto del dominio puro al
-> `ServicioPedidos` con dependencias: los **test doubles** y su taxonomía, hechos **a mano** (sin librería).
-> **Abre el Módulo 5.** Es conceptual; la sintaxis con NSubstitute es M5.2.
+> Rama `module-05.2/mocking-nsubstitute`. Checkpoint del curso **TESTNET**. Aquí los dobles que en M5.1
+> escribías a mano se crean con **NSubstitute**: `Substitute.For` + `Returns` (configurar) + `Received`
+> (verificar). Se testea el `ServicioPedidos` de punta a punta. Assert nativo (las fluidas son M5.3).
 
 ## Qué hay en esta rama
 
-- **`tests/.../Dobles/`** — los cuatro dobles escritos a mano, uno por dependencia del `ServicioPedidos`:
-  - `RelojFijo` — **stub** de `IReloj` (hora fija, determinismo).
-  - `RepositorioPedidosEnMemoria` — **fake** de `IRepositorioPedidos` (diccionario en RAM; lleva contador
-    `VecesGuardado` para hacer también de spy).
-  - `PasarelaPagoFalsa` — **stub + spy** de `IPasarelaPago` (resultado prefijado; registra cobros e importe).
-  - `LoggerEspia<T>` — **spy** de `ILogger<T>` (captura los apuntes de auditoría).
-- **`tests/.../DoblesArtesanalesTests.cs`** — 4 tests del `ServicioPedidos.Pagar` usando esos dobles y
-  `Assert` nativo: pago aceptado (estado + interacción), pago rechazado (BR-09: no avanza ni guarda),
-  cobro del total exacto (spy), pedido inexistente (no se cobra).
-- **[`MANUAL.md`](MANUAL.md)** — los dobles de cine, los 4 motivos, la taxonomía, estado vs. interacción,
-  la regla de oro y por qué verlos hechos a mano antes de NSubstitute.
-- **[`material/tarjetas/M5.1-test-doubles.md`](material/tarjetas/M5.1-test-doubles.md)** — tarjeta de 1 página.
-- **[`material/labs/M5.1-elegir-doble.md`](material/labs/M5.1-elegir-doble.md)** — lab **de criterio** (sin
-  código): decidir el doble de cada dependencia y si verificas estado o interacción.
+- **NSubstitute 5.3.0** en [`tests/.../VentasShop.TestsUnitarios.csproj`](tests/VentasShop.TestsUnitarios/VentasShop.TestsUnitarios.csproj).
+- **`tests/.../MockingNSubstituteTests.cs`** — 5 tests del `ServicioPedidos.Pagar` con dobles de NSubstitute:
+  caso feliz (estado + `Received` de `Guardar`/`Cobrar`), rechazo (BR-09: `DidNotReceive().Guardar`),
+  verificación de argumento (`Arg.Is<Pedido>(p => p.Estado == Pagado)`), pedido inexistente (no se cobra) y
+  pedido sin líneas (`PedidoSinLineasException`, BR-07).
+- **[`MANUAL.md`](MANUAL.md)** — los dos gestos del director, `Substitute.For`, `Returns`/`Arg`, `Received`/
+  `DidNotReceive`, estado vs interacción, permisivo vs estricto y los errores comunes.
+- **[`material/tarjetas/M5.2-nsubstitute.md`](material/tarjetas/M5.2-nsubstitute.md)** — tarjeta de 1 página + tabla Moq→NSubstitute.
+- **[`material/labs/M5.2-mockear-servicio-pedidos.md`](material/labs/M5.2-mockear-servicio-pedidos.md)** — lab: testear el servicio en sus 3 casos.
 
 ## Cómo se compila y se ejecuta
 
@@ -28,41 +23,33 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (63/63). `DoblesArtesanalesTests.cs` añade 4 tests; el código de
+Los **unitarios** salen en verde (68/68). `MockingNSubstituteTests.cs` añade 5 tests; el código de
 producción no cambia.
 
-## El SUT del Módulo 5: `ServicioPedidos`
+## Los dos gestos (lo que tienes que llevarte)
 
-En [`src/VentasShop.Aplicacion/ServicioPedidos.cs`](src/VentasShop.Aplicacion/ServicioPedidos.cs): orquesta
-el pago de un pedido con cuatro dependencias (`IRepositorioPedidos`, `IPasarelaPago`, `IReloj`,
-`ILogger<>`). Reglas en juego: si la pasarela rechaza, el pedido no avanza ni se guarda (BR-09); al pagar se
-registra la auditoría (BR-10). Es el ejemplo natural de mocking, y se arrastra por M5.2 y M5.3.
+- **Configurar (stub):** `repositorio.ObtenerPorId(id).Returns(pedido)` · `pasarela.Cobrar(Arg.Any<Dinero>(), Arg.Any<string>()).Returns(new ResultadoPago(true))`.
+- **Verificar (mock):** `repositorio.Received(1).Guardar(pedido)` · `repositorio.DidNotReceive().Guardar(Arg.Any<Pedido>())`.
+- **Argumento:** `repositorio.Received(1).Guardar(Arg.Is<Pedido>(p => p.Estado == EstadoPedido.Pagado))`.
 
-## Estado vs. interacción (lo conceptual)
+## De M5.1 a M5.2
 
-- **Estado** — miras el resultado (`pedido.Estado == Pagado`). Preferible: no se acopla a *cómo*.
-- **Interacción** — compruebas que se *llamó* a una dependencia (se cobró, se guardó, se auditó).
-- Regla: prefiere estado; usa interacción solo cuando la llamada en sí es lo que importa.
+En M5.1 los dobles estaban escritos a mano en `tests/.../Dobles/` (sin librería). Aquí se crean con una
+línea de NSubstitute. Compara los dos tests del caso feliz —`DoblesArtesanalesTests` y
+`MockingNSubstituteTests`— y verás el andamiaje que la librería te quita.
 
-## Hechos a mano (a propósito)
+## Permisivo por defecto
 
-Los dobles de esta rama no usan librería. Un fake o un stub se escriben a mano y se reutilizan, como los
-Builders de M3.3. Montar cada uno es trabajo: justo lo que NSubstitute reduce a dos líneas en **M5.2**.
-Verlos por dentro primero es lo que hace que la librería se entienda después.
-
-## Organización del repo
-
-- `src/` y `tests/` → la solución .NET. `material/` → todo lo didáctico (tarjetas, labs).
-- `tests/.../Dobles/` → los dobles reutilizables del Módulo 5.
-- `MANUAL.md` + `README.md` en la raíz = el manual y la ficha de **este** checkpoint.
+NSubstitute es *loose*: un método sin configurar devuelve el valor por defecto y no falla. Cómodo, pero
+ojo con el `NullReferenceException` confuso si tu código esperaba algo que no configuraste. Moq tenía un
+modo estricto; la tabla del MANUAL/tarjeta traduce Moq→NSubstitute casi línea a línea.
 
 ## Dónde estás en el curso
 
-… → `module-04.3/excepciones` (cierra el Módulo 4) → **`module-05.1/test-doubles`** ← estás aquí (abre el Módulo 5) → `module-05.2/mocking-nsubstitute` → …
+… → `module-05.1/test-doubles` → **`module-05.2/mocking-nsubstitute`** ← estás aquí → `module-05.3/aserciones-fluidas` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Submódulo **conceptual**: los dobles a mano + el lab de criterio. La sintaxis con NSubstitute es M5.2;
-  las aserciones fluidas de AwesomeAssertions, M5.3.
-- Taxonomía Dummy/Stub/Spy/Mock/Fake = Meszaros (*xUnit Test Patterns*); estado vs. interacción = Fowler.
+- Assert nativo para el estado; las aserciones fluidas de AwesomeAssertions llegan en M5.3.
+- `Throws` de NSubstitute vive en `using NSubstitute.ExceptionExtensions;`.
