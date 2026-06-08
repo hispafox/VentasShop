@@ -1,23 +1,19 @@
-# VentasShop · M3.3 — Fixtures, Builders y Object Mother
+# VentasShop · M4.1 — Introducción a xUnit.net
 
-> Rama `module-03.3/builders-object-mother`. Checkpoint del curso **TESTNET**. Aquí construyes el
-> **atrezzo de test** —Object Mother y Test Data Builder— para que el Arrange deje de ahogar los tests.
-> Cierra el Módulo 3 y la base conceptual del curso.
+> Rama `module-04.1/introduccion-xunit`. Checkpoint del curso **TESTNET**. Aquí montas el proyecto de
+> tests con xUnit v3 y escribes tus primeros `[Fact]` con la clase `Assert` nativa. Abre el Módulo 4
+> (la herramienta a fondo) y aterriza el stack cerrado del curso.
 
 ## Qué hay en esta rama
 
-- **`tests/.../Builders/PedidoBuilder.cs`** — el Test Data Builder de `Pedido`: interfaz fluida
-  (`ParaVip()`, `ConLinea()`, `SinLineas()`, `Confirmado()`, `Pagado()`, `Build()`) con valores por
-  defecto razonables. Es el `PedidoBuilder` que M3.1 y M3.2 anticipaban; aquí existe de verdad.
-- **`tests/.../Mothers/ClienteMother.cs`** — Object Mother de `Cliente` (arquetipos `Estandar`/`Premium`/`Vip`).
-- **`tests/.../Mothers/PedidoMother.cs`** — Object Mother de `Pedido` que por dentro usa el `PedidoBuilder`.
-- **`tests/.../ConstruccionDatosTests.cs`** — los mismos comportamientos del ciclo del pedido, ahora con
-  el Arrange limpio gracias al atrezzo. Compara con `PedidoEstadosTests.cs` (montaje a mano).
-- **[`MANUAL.md`](MANUAL.md)** — el atrezzo del teatro, Object Mother vs Builder, setup/teardown en xUnit
-  y el peligro del estado compartido.
-- **[`material/tarjetas/M3.3-builders.md`](material/tarjetas/M3.3-builders.md)** — tarjeta de 1 página.
-- **[`material/labs/M3.3-object-mother-builder.md`](material/labs/M3.3-object-mother-builder.md)** — lab:
-  construir el atrezzo y reescribir un Arrange enredado con él.
+- **`tests/.../PrimerasPruebasXunitTests.cs`** — los `[Fact]` de M4.1: el primer test del capítulo y los
+  tres tramos de descuento, **uno por test**, más un par de ejemplos del repertorio de `Assert`
+  (`Assert.Single`, `Assert.Empty`, `Assert.Equal`). Es el "antes" de los tests parametrizados.
+- **[`MANUAL.md`](MANUAL.md)** — el banco de trabajo, montar el proyecto (estructura, comandos, el `.csproj`
+  con `OutputType=Exe` sobre Microsoft Testing Platform), `[Fact]`, la clase `Assert` y leer un fallo.
+- **[`material/tarjetas/M4.1-xunit.md`](material/tarjetas/M4.1-xunit.md)** — tarjeta de 1 página.
+- **[`material/labs/M4.1-montar-proyecto-xunit.md`](material/labs/M4.1-montar-proyecto-xunit.md)** — lab:
+  montar el proyecto de cero, primeros `[Fact]`, y romper el código a propósito para leer la salida.
 
 ## Cómo se compila y se ejecuta
 
@@ -26,28 +22,40 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (32/32). `ConstruccionDatosTests.cs` añade 5 tests que usan el atrezzo;
-el código de producción no cambia.
+Los **unitarios** salen en verde (39/39). `PrimerasPruebasXunitTests.cs` añade 7 `[Fact]`; el código de
+producción no cambia.
+
+## El setup de xUnit v3 (lo que conviene mirar)
+
+El proyecto `tests/VentasShop.TestsUnitarios` está montado con la variante **MTP** de xUnit v3:
+
+- `<OutputType>Exe</OutputType>` — el proyecto de test es ejecutable (novedad de la v3).
+- `<TestingPlatformDotnetTestSupport>true</...>` + paquete `xunit.v3.mtp-v2` — se apoya en la
+  **Microsoft Testing Platform**, no en la variante VSTest (`xunit.runner.visualstudio`).
+- `xunit.runner.json` — configuración del runner.
+
+Es la base sobre la que el Módulo 7 monta la medición de cobertura.
 
 ## Qué cubre (BR)
 
-No añade reglas de negocio: reusa el ciclo del pedido (confirmar/pagar/enviar, BR-07) y el cálculo del
-total para enseñar **construcción de datos de test**. El SUT no cambia; lo que crece es el atrezzo de la
-suite, reutilizable en M4-M6.
+No añade reglas de negocio: reusa la `CalculadoraDescuentos` (descuento por volumen + tipo de cliente con
+tope del 15%) para enseñar **la mecánica de xUnit**: `[Fact]`, el repertorio de `Assert` y la lectura de un
+fallo. El SUT no cambia.
 
 ## Organización del repo
 
-- `src/` y `tests/` → la solución .NET. `tests/Builders/` y `tests/Mothers/` → el atrezzo de test.
-  `material/` → todo lo didáctico (tarjetas, labs).
+- `src/` y `tests/` → la solución .NET. `tests/Builders/` y `tests/Mothers/` → el atrezzo de test (M3.3,
+  reutilizado aquí sin re-explicar).
+- `material/` → todo lo didáctico (tarjetas, labs).
 - `MANUAL.md` + `README.md` en la raíz = el manual y la ficha de **este** checkpoint.
 
 ## Dónde estás en el curso
 
-… → `module-03.2/nombrado` → **`module-03.3/builders-object-mother`** ← estás aquí (cierra el Módulo 3) → `module-04.1/introduccion-xunit` → …
+… → `module-03.3/builders-object-mother` (cierra el Módulo 3) → **`module-04.1/introduccion-xunit`** ← estás aquí (abre el Módulo 4) → `module-04.2/tests-parametrizados` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- El `PedidoBuilder`/`ClienteMother`/`PedidoMother` son **plantillas reutilizables**: se usan sin
-  re-explicar en los Módulos 4, 5 y 6.
-- El detalle del estado compartido (`IClassFixture` con BD real) se cosecha en **M6**; aquí queda sembrado.
+- Los tres tramos van como `[Fact]` separados **a propósito**: es el tedio que `[Theory]` resuelve en M4.2.
+  Compara `PrimerasPruebasXunitTests.cs` (el "antes") con `CalculadoraDescuentosTests.cs` (el "después").
+- Las versiones concretas de los paquetes las pone la plantilla y caducan: no se fijan en el material.

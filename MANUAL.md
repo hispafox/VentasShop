@@ -1,115 +1,111 @@
-# Manual del alumno — M3.3 · Fixtures, Builders y Object Mother
+# Manual del alumno — M4.1 · Introducción a xUnit.net
 
-Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: por qué la preparación de
-datos ahoga los tests, y cómo el atrezzo de test devuelve el foco a lo que de verdad se comprueba.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué se dedica un rato a
+montar bien el proyecto de tests antes de escribir el primero, y por qué eso decide que de verdad ejecutes
+la suite o no.
 
-Tiempo de lectura: ~12 min. Submódulo M3.3 (Patrón AAA y Estructura de Tests). Cierra el Módulo 3 y la
-base conceptual del curso.
+Tiempo de lectura: ~12 min. Submódulo M4.1 (Tests Unitarios con xUnit.net). Abre el Módulo 4 y aterriza el
+stack cerrado del curso.
 
 ---
 
 ## 1. La idea en una frase
 
-Si el 80% de un test es preparar datos, no estás probando: estás amueblando. Los patrones de construcción
-(Object Mother, Builder) devuelven el Arrange a lo mínimo relevante.
+Montar bien el banco de trabajo —estructura correcta, paquetes correctos, ejecutar en un solo comando— es
+lo que hace que ejecutar la suite sea un gesto de un segundo. Y un gesto de un segundo se repite cientos de
+veces; un ritual de varios pasos, no.
 
 ---
 
-## 2. El problema: cinco líneas de mobiliario para una de prueba
+## 2. El terreno cambió, y conviene saberlo
 
-Sin atrezzo, dejar un pedido confirmado de verdad se ve así:
+Usamos **xUnit**, el framework de tests más extendido en .NET y el que trae de fábrica la plantilla de
+Microsoft. En concreto **xUnit v3**, la versión que se estabilizó en 2025 y la recomendada para proyectos
+nuevos. El aviso importa: buena parte de los tutoriales que encuentres por ahí siguen siendo de la v2, y el
+montaje del proyecto cambió. Lo que de verdad escribes —los `[Fact]`, las aserciones— es casi igual en las
+dos versiones; lo que cambia es cómo se arma la casa.
 
-```csharp
-var cliente = new Cliente { Nombre = "Ana", Tipo = TipoCliente.Estandar };
-var producto = new Producto { Nombre = "Teclado", PrecioUnitario = new Dinero(50m, "EUR"), UnidadesStock = 100 };
-var pedido = new Pedido(cliente);
-pedido.AgregarLinea(producto, new Cantidad(2));
-pedido.Confirmar();
-```
-
-Cinco líneas de montaje para una de prueba. Y lo peor no es la longitud: ese bloque lo copias en cada
-test que necesite un pedido. El día que cambie el constructor de `Pedido`, tocas veinte tests.
+Y el resto del stack también se movió. La librería de aserciones FluentAssertions pasó a ser de pago en su
+versión 8, y la de mocking Moq tuvo un episodio de privacidad en 2023. En este curso trabajamos con el stack
+vivo y gratuito a mayo de 2026 —xUnit v3, NSubstitute, AwesomeAssertions—, pero esas dos piezas no las
+necesitas hasta el Módulo 5. Hoy te basta con xUnit y sus aserciones de toda la vida.
 
 ---
 
-## 3. El atrezzo del teatro
+## 3. El banco de trabajo
 
-En una obra de teatro nadie funde una copa de cristal de verdad cada noche: usan **atrezzo**, utilería
-que parece lo que tiene que parecer para lo que la escena necesita. La copa no lleva vino de verdad; se
-ve como una copa con vino desde la butaca.
+Un buen carpintero, antes de empezar, monta su banco: cada herramienta en su sitio, la madera a mano, la luz
+bien puesta. Diez minutos al principio para que luego, durante horas, coger la herramienta sea un gesto
+instantáneo. Un banco mal montado se paga al revés: cada operación cuesta un poco más, y al cabo del día has
+perdido una hora en fricción.
 
-Tus datos de test son atrezzo. No necesitas un `Cliente` "real"; necesitas uno que sirva para *esa*
-escena. La regla de fondo: **en el Arrange, lo relevante se ve; el andamiaje se esconde.** Si pruebas el
-descuento de un VIP, el "VIP" a la vista; que se llame Ana, no.
-
----
-
-## 4. Object Mother: utilería lista
-
-Una clase con métodos estáticos que devuelven arquetipos ya montados.
-
-```csharp
-public static class ClienteMother
-{
-    public static Cliente Estandar() => new() { Nombre = "Cliente Estandar", Tipo = TipoCliente.Estandar };
-    public static Cliente Vip()      => new() { Nombre = "Cliente VIP",      Tipo = TipoCliente.Vip };
-}
-```
-
-En el test, el ruido desaparece: `var cliente = ClienteMother.Vip();`. Una línea que se lee, y un único
-sitio que tocar cuando cambie el constructor. Se queda corto con la combinatoria: si acabas escribiendo
-`VipFrancesBloqueadoSinPedidos()`, es la señal de pasar al Builder.
+Montar el proyecto de tests es eso. Los diez minutos que inviertes al principio se te devuelven multiplicados,
+porque vas a ejecutar la suite cientos de veces. Si ejecutar es un gesto de un segundo, lo haces constantemente
+y te enteras de los fallos al instante. Si es un ritual, no lo haces, y entonces los tests no protegen nada
+(vuelve FIRST, M1.3: un test que no se ejecuta no sirve).
 
 ---
 
-## 5. Test Data Builder: el taller a medida
+## 4. Montar el proyecto
 
-En vez de un método por combinación, un objeto que encadena decisiones y construye al llamar `Build()`.
-Mira `tests/.../Builders/PedidoBuilder.cs`: cada método devuelve `this` (por eso encadena) y rellena con
-valores por defecto razonables lo que no especifiques.
+La convención en .NET es tener producción y tests en proyectos separados, dentro de la misma solución. En
+VentasShop, el dominio en `src/VentasShop.Dominio` y los tests en `tests/VentasShop.TestsUnitarios`. Dos
+motivos: los tests no se despliegan a producción, y la dependencia va en un solo sentido —el proyecto de test
+conoce al de producción, nunca al revés—.
 
-```csharp
-var pedido = new PedidoBuilder().ParaVip().ConLinea(precio: 300m, cantidad: 2).Pagado().Build();
-```
+Para crearlo desde cero: instalas las plantillas de xUnit v3 (una vez por máquina), generas el proyecto con
+`dotnet new xunit3` y añades la referencia al dominio. Tres comandos, banco montado. Los tienes paso a paso en
+el laboratorio.
 
-Se lee como una frase: "un pedido de un VIP, con una línea de 300 € por 2 unidades, ya pagado". Cada
-test pone a la vista solo lo suyo: el del descuento VIP escribe `.ParaVip()` y nada más; el de pagar sin
-líneas, `.SinLineas()`. Y muy a menudo conviven: un Object Mother que por dentro usa un Builder.
-
----
-
-## 6. Setup, TearDown y la independencia
-
-xUnit no usa atributos especiales: el **constructor de la clase de test hace de setup** (antes de cada
-test) y, si implementas **`IDisposable`**, su `Dispose` hace de teardown (después).
-
-El detalle clave: **xUnit crea una instancia nueva de la clase de test por cada test**. No hay estado que
-se arrastre de un test a otro. Es una decisión de diseño deliberada que te da la independencia de FIRST
-(M1.3) por defecto: cada test arranca de cero, como cada medición del experimento con material limpio.
+Si abres el `.csproj`, ves la novedad grande de la v3: `<OutputType>Exe</OutputType>`. En la v2 el proyecto de
+test era una librería que cargaba un *runner* externo; en la v3 es un programa que se ejecuta solo. Eso le
+permite apoyarse en la **Microsoft Testing Platform** —por eso el paquete es `xunit.v3.mtp-v2`, no la variante
+clásica—, y es la base sobre la que montaremos la cobertura en el Módulo 7. Para tu día a día es transparente:
+sigues lanzando `dotnet test`.
 
 ---
 
-## 7. El peligro del estado compartido
+## 5. `[Fact]` y la clase `Assert`
 
-Cuando algo es caro de crear (una conexión a base de datos), xUnit ofrece `IClassFixture<T>` para
-compartirlo entre los tests de una clase. Es legítimo, pero abre una puerta peligrosa: si ese recurso
-tiene estado mutable y un test lo modifica, el siguiente lo hereda sucio, y vuelves a romper la
-independencia de M1.3 — tests que fallan según el orden, bugs que no existen, tardes perdidas.
+Un test en xUnit es un método público marcado con `[Fact]` —un hecho que siempre debe ser cierto—. Mira
+[`tests/.../PrimerasPruebasXunitTests.cs`](tests/VentasShop.TestsUnitarios/PrimerasPruebasXunitTests.cs):
+reconoces todo de los módulos anteriores; lo nuevo es solo el `[Fact]` y el `Assert.Equal`.
 
-La regla: **comparte lo caro que no cambia** (una conexión, una configuración); **nunca estado que los
-tests modifican.** Lo barato, créalo por test. Esto se vuelve protagonista en el Módulo 6, con bases de
-datos de integración de verdad; aquí queda sembrado.
+La clase `Assert` es el corazón de xUnit, con un método por tipo de comprobación. No los memorices —el
+autocompletado los ofrece—, pero conoce el repertorio, y sobre todo dos hábitos:
+
+- **Usa la aserción más específica que encaje.** `Assert.Empty(lista)` cuando falla dice "esperaba vacía,
+  tenía 3"; `Assert.True(lista.Count == 0)` solo dice "esperaba True". La específica describe mejor el fallo.
+- **`Assert.Equal(esperado, real)`: esperado primero, real después.** Si los inviertes, el test funciona
+  igual, pero al fallar el mensaje sale del revés y te hace buscar un bug donde no está. Esperado primero,
+  siempre.
 
 ---
 
-## 8. Lo que te llevas
+## 6. Ejecutar y leer el resultado
 
-El laboratorio ([`material/labs/M3.3-object-mother-builder.md`](material/labs/M3.3-object-mother-builder.md))
-te hace construir el `PedidoBuilder`/`ClienteMother`/`PedidoMother` de VentasShop y reescribir un Arrange
-enredado con ellos. La tarjeta ([`material/tarjetas/M3.3-builders.md`](material/tarjetas/M3.3-builders.md))
-lo resume. Ese atrezzo se queda como plantilla y lo usaremos sin re-explicarlo en M4, M5 y M6.
+Dos formas, y usas las dos. Desde la terminal, `dotnet test` compila, descubre los `[Fact]`, los ejecuta y
+resume; es lo que usa la integración continua (M7). Desde el editor, el **Test Explorer**: el árbol de tests,
+ejecutar uno o todos, verdes y rojos de un vistazo, y un breakpoint dentro de un test para depurarlo paso a
+paso. ¿Cada cuánto? Constantemente: como los unitarios son rápidos, los ejecutas tras cada cambio.
 
-Con esto cierras el Módulo 3 y toda la base conceptual: sabes *por qué* testear (M1), *qué* y cómo medirlo
-sin engañarte (M2), y cómo escribir un test que se lee y se mantiene —AAA, buen nombre, datos limpios—
-(M3). Lo que falta es dominar la herramienta: el Módulo 4 entra en xUnit a fondo, ya con la decisión de
-stack aterrizada.
+El momento que importa es cuando un test se pone rojo. La salida de xUnit te da el nombre (qué se rompió),
+el mensaje (qué esperaba frente a qué obtuvo) y la traza (dónde). Léela de arriba abajo: el test no solo
+grita que algo va mal, te lleva de la mano al sitio. En el laboratorio rompes el cálculo del tramo alto a
+propósito (un `>=` por un `>`) y practicas leer ese fallo.
+
+---
+
+## 7. Lo que te llevas
+
+El laboratorio
+([`material/labs/M4.1-montar-proyecto-xunit.md`](material/labs/M4.1-montar-proyecto-xunit.md)) te hace montar
+el proyecto de cero, escribir tus primeros `[Fact]` sobre la `CalculadoraDescuentos` y leer un fallo de
+verdad. La tarjeta ([`material/tarjetas/M4.1-xunit.md`](material/tarjetas/M4.1-xunit.md)) lo resume en una
+página.
+
+Y enseguida notas algo: para cubrir bien la calculadora necesitas muchos tests casi iguales, y escribirlos
+como `[Fact]` separados —copiar y pegar cambiando dos números— es justo el tedio que detectamos en M2.2.
+Compara `PrimerasPruebasXunitTests.cs` (los tres tramos, un `[Fact]` por caso) con
+`CalculadoraDescuentosTests.cs` (los mismos casos en `[Theory]`): es el mismo trabajo sin la repetición. Esa
+es la puerta a los tests parametrizados, y es lo siguiente: M4.2.
