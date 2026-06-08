@@ -1,118 +1,115 @@
-# Manual del alumno — M3.2 · Convenciones de nombrado de tests
+# Manual del alumno — M3.3 · Fixtures, Builders y Object Mother
 
-Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: por qué el nombre de un
-test importa tanto como su código, qué formato lo convierte en documentación, y cómo reconocer un mal
-nombre.
+Esto **no** es el [`README.md`](README.md). Este manual te cuenta el *porqué*: por qué la preparación de
+datos ahoga los tests, y cómo el atrezzo de test devuelve el foco a lo que de verdad se comprueba.
 
-Tiempo de lectura: ~11 min. Submódulo M3.2 (Patrón AAA y Estructura de Tests). **Aquí no añades
-comportamiento al SUT**: aprendes a *nombrar* los tests para que, al fallar, te digan qué se rompió.
+Tiempo de lectura: ~12 min. Submódulo M3.3 (Patrón AAA y Estructura de Tests). Cierra el Módulo 3 y la
+base conceptual del curso.
 
 ---
 
 ## 1. La idea en una frase
 
-El nombre de un test es su documentación: si al fallar no te dice qué se rompió sin abrir el código,
-está mal puesto.
+Si el 80% de un test es preparar datos, no estás probando: estás amueblando. Los patrones de construcción
+(Object Mother, Builder) devuelven el Arrange a lo mínimo relevante.
 
 ---
 
-## 2. El gancho: el pipeline en rojo
+## 2. El problema: cinco líneas de mobiliario para una de prueba
 
-Lunes por la mañana, la build en rojo. Despliegas el panel de tests y ves `Test1`, `TestDescuento2`,
-`Prueba_final_OK`. ¿Qué se ha roto? Ni idea: toca abrir cada test, leerlo entero y reconstruir qué
-probaba. Has convertido un diagnóstico de tres segundos en una arqueología de veinte minutos.
-
-En un test, el nombre es tan importante como el código. Quizá más: el código lo lees cuando vas a
-tocarlo; el nombre, cada vez que la suite se ejecuta. Es la cara pública del test.
-
----
-
-## 3. Un buen nombre es un titular
-
-Piensa en los titulares de un periódico. "Sube el precio de la luz un 12% en marzo por el frío" te
-cuenta la noticia sin leer el artículo. "Novedades en el sector energético" te obliga a leerlo todo.
-
-Los nombres de tus tests son los titulares de tu suite. Cuando el pipeline está en rojo, lees los
-titulares: si cuentan la noticia, sabes qué se rompió sin abrir un archivo. La pregunta que juzga
-cualquier nombre: ¿me cuenta la noticia, o me obliga a leer el artículo?
-
----
-
-## 4. El formato que sí funciona
-
-La convención más extendida en .NET tiene tres partes separadas por guion bajo:
-
-```
-Metodo_Escenario_ResultadoEsperado
-```
-
-Qué método pruebas, bajo qué escenario, y qué debería pasar. Son las tres fases de AAA convertidas en
-nombre: el escenario es el Arrange, el método es el Act, el resultado esperado es el Assert. Puesto en
-práctica, se leen como frases:
+Sin atrezzo, dejar un pedido confirmado de verdad se ve así:
 
 ```csharp
-CalcularTasaDescuento_PedidoSupera500_Aplica10Porciento
-Pagar_PedidoSinLineas_LanzaPedidoSinLineas
-Enviar_PedidoSinPagar_LanzaTransicionInvalida
+var cliente = new Cliente { Nombre = "Ana", Tipo = TipoCliente.Estandar };
+var producto = new Producto { Nombre = "Teclado", PrecioUnitario = new Dinero(50m, "EUR"), UnidadesStock = 100 };
+var pedido = new Pedido(cliente);
+pedido.AgregarLinea(producto, new Cantidad(2));
+pedido.Confirmar();
 ```
 
-Vuelve ahora al panel del pipeline, pero con estos nombres: el diagnóstico es instantáneo. Sabes qué
-mirar antes de abrir un solo archivo.
-
-Dos detalles. El idioma: el nombre arranca con el nombre real del método (`CalcularTasaDescuento`,
-porque así se llama en el código) y el escenario y el resultado van en el idioma del equipo; aquí, en
-castellano. La longitud: salen largos, y no pasa nada — se leen mucho más de lo que se teclean, y el IDE
-autocompleta. Optimiza la claridad, nunca la longitud.
+Cinco líneas de montaje para una de prueba. Y lo peor no es la longitud: ese bloque lo copias en cada
+test que necesite un pedido. El día que cambie el constructor de `Pedido`, tocas veinte tests.
 
 ---
 
-## 5. El test como documentación que no puede mentir
+## 3. El atrezzo del teatro
 
-Cuando los nombres son frases que describen comportamientos, la lista de tests de una clase se convierte
-en su especificación. Pero una especificación que, a diferencia del wiki o el Word de requisitos, no se
-queda obsoleta en silencio: si alguien cambia el código para que un test deje de cumplir su nombre, el
-test se pone rojo. Te avisa, en rojo, el día mismo que deja de ser cierto.
+En una obra de teatro nadie funde una copa de cristal de verdad cada noche: usan **atrezzo**, utilería
+que parece lo que tiene que parecer para lo que la escena necesita. La copa no lleva vino de verdad; se
+ve como una copa con vino desde la butaca.
 
-Haz la prueba: lee de corrido solo los nombres de tests de una clase bien testeada. Deberías obtener su
-especificación en lenguaje natural ("calcula 10% si supera 500; nunca pasa del 15%; no se puede pagar
-sin líneas"). Si suena a la spec, los nombres son buenos. Para quien entra nuevo al equipo, esa lectura
-es la forma más rápida y fiable de entender el sistema.
+Tus datos de test son atrezzo. No necesitas un `Cliente` "real"; necesitas uno que sirva para *esa*
+escena. La regla de fondo: **en el Arrange, lo relevante se ve; el andamiaje se esconde.** Si pruebas el
+descuento de un VIP, el "VIP" a la vista; que se llame Ana, no.
 
 ---
 
-## 6. Otras convenciones (y lo que importa)
+## 4. Object Mother: utilería lista
 
-`Metodo_Escenario_Resultado` es la apuesta más común en .NET, pero no la única. Está **Given-When-Then**
-(del BDD): `Given_PedidoSinPagar_When_Enviar_Then_LanzaExcepcion`. Y la **frase con `Should`**, fluida en
-inglés: `Should_Apply10Percent_When_OrderExceeds500`. Todas dan buenos titulares.
+Una clase con métodos estáticos que devuelven arquetipos ya montados.
 
-Importa menos cuál elijas que elegir una y ser consistente: mezclar formatos obliga a tu cerebro a
-cambiar de idioma a cada test. Por encima del formato hay una prueba de fuego: al leer el nombre, sin
-abrir el código, ¿sabes qué comprueba y qué significaría que fallara? Si sí, el nombre es bueno.
+```csharp
+public static class ClienteMother
+{
+    public static Cliente Estandar() => new() { Nombre = "Cliente Estandar", Tipo = TipoCliente.Estandar };
+    public static Cliente Vip()      => new() { Nombre = "Cliente VIP",      Tipo = TipoCliente.Vip };
+}
+```
+
+En el test, el ruido desaparece: `var cliente = ClienteMother.Vip();`. Una línea que se lee, y un único
+sitio que tocar cuando cambie el constructor. Se queda corto con la combinatoria: si acabas escribiendo
+`VipFrancesBloqueadoSinPedidos()`, es la señal de pasar al Builder.
 
 ---
 
-## 7. Los antipatrones de nombre
+## 5. Test Data Builder: el taller a medida
 
-- **Vago** (`Test1`, `TestDescuento`): no dice escenario ni resultado; acabas en `TestDescuento2`,
-  `TestDescuento3` y perdido.
-- **Describe la implementación** (`CalcularTasaDescuento_UsaSwitch_DevuelveDecimal`): miente en cuanto
-  cambias el `switch` sin cambiar el comportamiento. Nombra lo que hace, no cómo está hecho.
-- **El que miente**: el nombre dice una cosa y el cuerpo prueba otra. Peor que no tener nombre, porque
-  te da información falsa cuando confías en ella.
-- **El que no se actualiza**: cambias qué prueba el test y dejas el nombre viejo. La documentación viva
-  miente en verde, en silencio. Cuando cambias lo que un test prueba, el nombre cambia con él.
+En vez de un método por combinación, un objeto que encadena decisiones y construye al llamar `Build()`.
+Mira `tests/.../Builders/PedidoBuilder.cs`: cada método devuelve `this` (por eso encadena) y rellena con
+valores por defecto razonables lo que no especifiques.
+
+```csharp
+var pedido = new PedidoBuilder().ParaVip().ConLinea(precio: 300m, cantidad: 2).Pagado().Build();
+```
+
+Se lee como una frase: "un pedido de un VIP, con una línea de 300 € por 2 unidades, ya pagado". Cada
+test pone a la vista solo lo suyo: el del descuento VIP escribe `.ParaVip()` y nada más; el de pagar sin
+líneas, `.SinLineas()`. Y muy a menudo conviven: un Object Mother que por dentro usa un Builder.
+
+---
+
+## 6. Setup, TearDown y la independencia
+
+xUnit no usa atributos especiales: el **constructor de la clase de test hace de setup** (antes de cada
+test) y, si implementas **`IDisposable`**, su `Dispose` hace de teardown (después).
+
+El detalle clave: **xUnit crea una instancia nueva de la clase de test por cada test**. No hay estado que
+se arrastre de un test a otro. Es una decisión de diseño deliberada que te da la independencia de FIRST
+(M1.3) por defecto: cada test arranca de cero, como cada medición del experimento con material limpio.
+
+---
+
+## 7. El peligro del estado compartido
+
+Cuando algo es caro de crear (una conexión a base de datos), xUnit ofrece `IClassFixture<T>` para
+compartirlo entre los tests de una clase. Es legítimo, pero abre una puerta peligrosa: si ese recurso
+tiene estado mutable y un test lo modifica, el siguiente lo hereda sucio, y vuelves a romper la
+independencia de M1.3 — tests que fallan según el orden, bugs que no existen, tardes perdidas.
+
+La regla: **comparte lo caro que no cambia** (una conexión, una configuración); **nunca estado que los
+tests modifican.** Lo barato, créalo por test. Esto se vuelve protagonista en el Módulo 6, con bases de
+datos de integración de verdad; aquí queda sembrado.
 
 ---
 
 ## 8. Lo que te llevas
 
-El laboratorio ([`material/labs/M3.2-renombrar-tests.md`](material/labs/M3.2-renombrar-tests.md)) te da
-una batería de tests mal nombrados para renombrar al formato y leer la lista como especificación. La
-tarjeta ([`material/tarjetas/M3.2-nombrado.md`](material/tarjetas/M3.2-nombrado.md)) lo resume. Los
-tests reales del repo (`CalculadoraDescuentosTests.cs`, `PedidoEstadosTests.cs`, `EstructuraAaaTests.cs`)
-ya siguen el formato: son tu modelo.
+El laboratorio ([`material/labs/M3.3-object-mother-builder.md`](material/labs/M3.3-object-mother-builder.md))
+te hace construir el `PedidoBuilder`/`ClienteMother`/`PedidoMother` de VentasShop y reescribir un Arrange
+enredado con ellos. La tarjeta ([`material/tarjetas/M3.3-builders.md`](material/tarjetas/M3.3-builders.md))
+lo resume. Ese atrezzo se queda como plantilla y lo usaremos sin re-explicarlo en M4, M5 y M6.
 
-Con AAA dándote la estructura (M3.1) y un buen nombre dándole voz (este), tus tests ya se leen. Queda el
-ingrediente que más código ahorra: construir los datos de prueba sin que el Arrange se coma el test
-entero. Eso es M3.3, y cierra el módulo.
+Con esto cierras el Módulo 3 y toda la base conceptual: sabes *por qué* testear (M1), *qué* y cómo medirlo
+sin engañarte (M2), y cómo escribir un test que se lee y se mantiene —AAA, buen nombre, datos limpios—
+(M3). Lo que falta es dominar la herramienta: el Módulo 4 entra en xUnit a fondo, ya con la decisión de
+stack aterrizada.
