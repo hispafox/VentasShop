@@ -1,19 +1,26 @@
-# VentasShop · M4.1 — Introducción a xUnit.net
+# VentasShop · M4.2 — Tests parametrizados con `[Theory]`
 
-> Rama `module-04.1/introduccion-xunit`. Checkpoint del curso **TESTNET**. Aquí montas el proyecto de
-> tests con xUnit v3 y escribes tus primeros `[Fact]` con la clase `Assert` nativa. Abre el Módulo 4
-> (la herramienta a fondo) y aterriza el stack cerrado del curso.
+> Rama `module-04.2/tests-parametrizados`. Checkpoint del curso **TESTNET**. Aquí pasas del muro de
+> `[Fact]` repetidos a `[Theory]` parametrizado, y ves las cuatro formas de dar datos a un test.
 
 ## Qué hay en esta rama
 
-- **`tests/.../PrimerasPruebasXunitTests.cs`** — los `[Fact]` de M4.1: el primer test del capítulo y los
-  tres tramos de descuento, **uno por test**, más un par de ejemplos del repertorio de `Assert`
-  (`Assert.Single`, `Assert.Empty`, `Assert.Equal`). Es el "antes" de los tests parametrizados.
-- **[`MANUAL.md`](MANUAL.md)** — el banco de trabajo, montar el proyecto (estructura, comandos, el `.csproj`
-  con `OutputType=Exe` sobre Microsoft Testing Platform), `[Fact]`, la clase `Assert` y leer un fallo.
-- **[`material/tarjetas/M4.1-xunit.md`](material/tarjetas/M4.1-xunit.md)** — tarjeta de 1 página.
-- **[`material/labs/M4.1-montar-proyecto-xunit.md`](material/labs/M4.1-montar-proyecto-xunit.md)** — lab:
-  montar el proyecto de cero, primeros `[Fact]`, y romper el código a propósito para leer la salida.
+- **`tests/.../ParametrizacionTests.cs`** — las **cuatro fuentes de datos** una al lado de otra sobre el
+  mismo descuento: `[InlineData]` (enteros), `[MemberData]` (`object[]`), `TheoryData<>` (tipado) y
+  `[ClassData]` (clase `CasosFronteraDescuento`). 13 tests nuevos.
+- **[`MANUAL.md`](MANUAL.md)** — la prensa y las láminas, `[Theory]`+`[InlineData]`, la limitación del
+  `decimal`, las cuatro fuentes y el criterio de cuándo parametrizar vs separar.
+- **[`material/tarjetas/M4.2-theory.md`](material/tarjetas/M4.2-theory.md)** — tarjeta de 1 página.
+- **[`material/labs/M4.2-parametrizar-descuento.md`](material/labs/M4.2-parametrizar-descuento.md)** — lab:
+  convertir los `[Fact]` del descuento en un `[Theory]` y elegir la fuente de datos.
+
+## El "antes" y el "después" (compara)
+
+- **El "antes":** `tests/.../PrimerasPruebasXunitTests.cs` — los tramos del descuento como `[Fact]`
+  separados (M4.1).
+- **El "después":** `tests/.../CalculadoraDescuentosTests.cs` — los mismos casos en `[Theory]` +
+  `TheoryData<decimal>` (ya estaba desde M2.2).
+- **La referencia de M4.2:** `tests/.../ParametrizacionTests.cs` — las cuatro fuentes juntas.
 
 ## Cómo se compila y se ejecuta
 
@@ -22,40 +29,32 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (39/39). `PrimerasPruebasXunitTests.cs` añade 7 `[Fact]`; el código de
+Los **unitarios** salen en verde (52/52). `ParametrizacionTests.cs` añade 13 casos; el código de
 producción no cambia.
 
-## El setup de xUnit v3 (lo que conviene mirar)
+## La regla del `decimal` (la que vertebra el submódulo)
 
-El proyecto `tests/VentasShop.TestsUnitarios` está montado con la variante **MTP** de xUnit v3:
-
-- `<OutputType>Exe</OutputType>` — el proyecto de test es ejecutable (novedad de la v3).
-- `<TestingPlatformDotnetTestSupport>true</...>` + paquete `xunit.v3.mtp-v2` — se apoya en la
-  **Microsoft Testing Platform**, no en la variante VSTest (`xunit.runner.visualstudio`).
-- `xunit.runner.json` — configuración del runner.
-
-Es la base sobre la que el Módulo 7 monta la medición de cobertura.
+`[InlineData]` solo admite constantes de compilación, y `decimal` no lo es: `[InlineData(0.10m, ...)]` no
+compila. Por eso los importes van por `[MemberData]` / `TheoryData<decimal>` / `[ClassData]`, y `[InlineData]`
+se reserva para constantes simples (enteros, enums), como en `CantidadTests.cs`.
 
 ## Qué cubre (BR)
 
 No añade reglas de negocio: reusa la `CalculadoraDescuentos` (descuento por volumen + tipo de cliente con
-tope del 15%) para enseñar **la mecánica de xUnit**: `[Fact]`, el repertorio de `Assert` y la lectura de un
-fallo. El SUT no cambia.
+tope del 15%) y la `Cantidad` para enseñar **parametrización**. El SUT no cambia.
 
 ## Organización del repo
 
-- `src/` y `tests/` → la solución .NET. `tests/Builders/` y `tests/Mothers/` → el atrezzo de test (M3.3,
-  reutilizado aquí sin re-explicar).
-- `material/` → todo lo didáctico (tarjetas, labs).
+- `src/` y `tests/` → la solución .NET. `material/` → todo lo didáctico (tarjetas, labs).
 - `MANUAL.md` + `README.md` en la raíz = el manual y la ficha de **este** checkpoint.
 
 ## Dónde estás en el curso
 
-… → `module-03.3/builders-object-mother` (cierra el Módulo 3) → **`module-04.1/introduccion-xunit`** ← estás aquí (abre el Módulo 4) → `module-04.2/tests-parametrizados` → …
+… → `module-04.1/introduccion-xunit` → **`module-04.2/tests-parametrizados`** ← estás aquí → `module-04.3/excepciones` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Los tres tramos van como `[Fact]` separados **a propósito**: es el tedio que `[Theory]` resuelve en M4.2.
-  Compara `PrimerasPruebasXunitTests.cs` (el "antes") con `CalculadoraDescuentosTests.cs` (el "después").
-- Las versiones concretas de los paquetes las pone la plantilla y caducan: no se fijan en el material.
+- El antipatrón del `bool debeLanzar` + `if` (dos comportamientos en un `[Theory]`) se explica en el
+  MANUAL; su resolución —testear la excepción aparte— es M4.3.
+- ¿Cuántos casos meter? Los que marquen las técnicas de M2.2 (partición, límites, tabla de decisión).

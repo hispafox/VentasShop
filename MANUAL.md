@@ -1,111 +1,100 @@
-# Manual del alumno — M4.1 · Introducción a xUnit.net
+# Manual del alumno — M4.2 · Tests parametrizados con `[Theory]`
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué se dedica un rato a
-montar bien el proyecto de tests antes de escribir el primero, y por qué eso decide que de verdad ejecutes
-la suite o no.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué quince tests casi
+idénticos son una mala señal, y cómo un `[Theory]` los convierte en un test con muchos casos sin perder
+—al revés, ganando— diagnóstico cuando algo falla.
 
-Tiempo de lectura: ~12 min. Submódulo M4.1 (Tests Unitarios con xUnit.net). Abre el Módulo 4 y aterriza el
-stack cerrado del curso.
+Tiempo de lectura: ~12 min. Submódulo M4.2 (Tests Unitarios con xUnit.net).
 
 ---
 
 ## 1. La idea en una frase
 
-Montar bien el banco de trabajo —estructura correcta, paquetes correctos, ejecutar en un solo comando— es
-lo que hace que ejecutar la suite sea un gesto de un segundo. Y un gesto de un segundo se repite cientos de
-veces; un ritual de varios pasos, no.
+Un mismo comportamiento con muchos datos no son muchos tests: es un test con muchos casos. Parametrizar es
+separar la lógica del test (el molde) de los datos que lo ejercitan (las láminas).
 
 ---
 
-## 2. El terreno cambió, y conviene saberlo
+## 2. El muro de copia-pega
 
-Usamos **xUnit**, el framework de tests más extendido en .NET y el que trae de fábrica la plantilla de
-Microsoft. En concreto **xUnit v3**, la versión que se estabilizó en 2025 y la recomendada para proyectos
-nuevos. El aviso importa: buena parte de los tutoriales que encuentres por ahí siguen siendo de la v2, y el
-montaje del proyecto cambió. Lo que de verdad escribes —los `[Fact]`, las aserciones— es casi igual en las
-dos versiones; lo que cambia es cómo se arma la casa.
-
-Y el resto del stack también se movió. La librería de aserciones FluentAssertions pasó a ser de pago en su
-versión 8, y la de mocking Moq tuvo un episodio de privacidad en 2023. En este curso trabajamos con el stack
-vivo y gratuito a mayo de 2026 —xUnit v3, NSubstitute, AwesomeAssertions—, pero esas dos piezas no las
-necesitas hasta el Módulo 5. Hoy te basta con xUnit y sus aserciones de toda la vida.
+Para cubrir bien la `CalculadoraDescuentos` hacen falta unos quince casos: los tramos de importe, los tipos
+de cliente, los valores límite, el tope. Si los escribes como `[Fact]` separados, te queda un muro de
+métodos idénticos salvo dos números. Huele mal: si el método cambia de firma tocas quince sitios, el
+archivo se vuelve ilegible, y añadir un caso invita a olvidarse. El problema de fondo es que mezclas la
+lógica (siempre igual) con los datos (lo único que cambia).
 
 ---
 
-## 3. El banco de trabajo
+## 3. La prensa y las láminas
 
-Un buen carpintero, antes de empezar, monta su banco: cada herramienta en su sitio, la madera a mano, la luz
-bien puesta. Diez minutos al principio para que luego, durante horas, coger la herramienta sea un gesto
-instantáneo. Un banco mal montado se paga al revés: cada operación cuesta un poco más, y al cabo del día has
-perdido una hora en fricción.
-
-Montar el proyecto de tests es eso. Los diez minutos que inviertes al principio se te devuelven multiplicados,
-porque vas a ejecutar la suite cientos de veces. Si ejecutar es un gesto de un segundo, lo haces constantemente
-y te enteras de los fallos al instante. Si es un ritual, no lo haces, y entonces los tests no protegen nada
-(vuelve FIRST, M1.3: un test que no se ejecuta no sirve).
+Una prensa de estampar se fabrica una vez, con cuidado. Por ella pasan láminas, una tras otra, y cada una
+sale igual. Nadie fabrica una prensa por cada pieza. Un test parametrizado es eso: el método es la prensa
+—la lógica escrita una sola vez—, y los datos son las láminas. Los quince `[Fact]` eran quince prensas
+hechas a mano para estampar una pieza cada una.
 
 ---
 
-## 4. Montar el proyecto
+## 4. `[Theory]` + `[InlineData]` y la ventaja del diagnóstico
 
-La convención en .NET es tener producción y tests en proyectos separados, dentro de la misma solución. En
-VentasShop, el dominio en `src/VentasShop.Dominio` y los tests en `tests/VentasShop.TestsUnitarios`. Dos
-motivos: los tests no se despliegan a producción, y la dependencia va en un solo sentido —el proyecto de test
-conoce al de producción, nunca al revés—.
+`[Theory]` marca un test que se ejecuta varias veces; cada `[InlineData]` aporta un juego de datos. El
+ejemplo limpio del repo es la invariante de `Cantidad` con enteros (mira
+[`tests/.../CantidadTests.cs`](tests/VentasShop.TestsUnitarios/CantidadTests.cs)).
 
-Para crearlo desde cero: instalas las plantillas de xUnit v3 (una vez por máquina), generas el proyecto con
-`dotnet new xunit3` y añades la referencia al dominio. Tres comandos, banco montado. Los tienes paso a paso en
-el laboratorio.
-
-Si abres el `.csproj`, ves la novedad grande de la v3: `<OutputType>Exe</OutputType>`. En la v2 el proyecto de
-test era una librería que cargaba un *runner* externo; en la v3 es un programa que se ejecuta solo. Eso le
-permite apoyarse en la **Microsoft Testing Platform** —por eso el paquete es `xunit.v3.mtp-v2`, no la variante
-clásica—, y es la base sobre la que montaremos la cobertura en el Módulo 7. Para tu día a día es transparente:
-sigues lanzando `dotnet test`.
+La ventaja que se subestima: **xUnit trata cada `[InlineData]` como un test independiente**. En el Test
+Explorer ves una fila por caso. Si uno falla y los demás pasan, el reporte te dice cuál, con su valor. Un
+`foreach` dentro de un `[Fact]` se pararía en el primer fallo y te ocultaría el resto. Es parametrización
+con diagnóstico, no solo ahorro de líneas.
 
 ---
 
-## 5. `[Fact]` y la clase `Assert`
+## 5. La limitación del `decimal` (el punto del curso)
 
-Un test en xUnit es un método público marcado con `[Fact]` —un hecho que siempre debe ser cierto—. Mira
-[`tests/.../PrimerasPruebasXunitTests.cs`](tests/VentasShop.TestsUnitarios/PrimerasPruebasXunitTests.cs):
-reconoces todo de los módulos anteriores; lo nuevo es solo el `[Fact]` y el `Assert.Equal`.
-
-La clase `Assert` es el corazón de xUnit, con un método por tipo de comprobación. No los memorices —el
-autocompletado los ofrece—, pero conoce el repertorio, y sobre todo dos hábitos:
-
-- **Usa la aserción más específica que encaje.** `Assert.Empty(lista)` cuando falla dice "esperaba vacía,
-  tenía 3"; `Assert.True(lista.Count == 0)` solo dice "esperaba True". La específica describe mejor el fallo.
-- **`Assert.Equal(esperado, real)`: esperado primero, real después.** Si los inviertes, el test funciona
-  igual, pero al fallar el mensaje sale del revés y te hace buscar un bug donde no está. Esperado primero,
-  siempre.
+`[InlineData]` solo admite constantes de compilación, y `decimal` **no** lo es: `[InlineData(0.10m, ...)]`
+no compila. Y resulta que los importes de la `CalculadoraDescuentos` son `decimal`. Por eso, en este curso,
+los importes van por las otras fuentes de datos, no por `[InlineData]`. Lo ves resuelto en
+[`tests/.../CalculadoraDescuentosTests.cs`](tests/VentasShop.TestsUnitarios/CalculadoraDescuentosTests.cs),
+que usa `TheoryData<decimal, ...>` justo por esto.
 
 ---
 
-## 6. Ejecutar y leer el resultado
+## 6. Las cuatro fuentes de datos
 
-Dos formas, y usas las dos. Desde la terminal, `dotnet test` compila, descubre los `[Fact]`, los ejecuta y
-resume; es lo que usa la integración continua (M7). Desde el editor, el **Test Explorer**: el árbol de tests,
-ejecutar uno o todos, verdes y rojos de un vistazo, y un breakpoint dentro de un test para depurarlo paso a
-paso. ¿Cada cuánto? Constantemente: como los unitarios son rápidos, los ejecutas tras cada cambio.
+Una sola idea —separar el molde de las láminas—, cuatro sitios donde guardar las láminas. Las tienes una al
+lado de otra en
+[`tests/.../ParametrizacionTests.cs`](tests/VentasShop.TestsUnitarios/ParametrizacionTests.cs):
 
-El momento que importa es cuando un test se pone rojo. La salida de xUnit te da el nombre (qué se rompió),
-el mensaje (qué esperaba frente a qué obtuvo) y la traza (dónde). Léela de arriba abajo: el test no solo
-grita que algo va mal, te lleva de la mano al sitio. En el laboratorio rompes el cálculo del tramo alto a
-propósito (un `>=` por un `>`) y practicas leer ese fallo.
+- **`[InlineData]`** para constantes simples (enteros, enums).
+- **`[MemberData]`** toma los casos de un método estático (ahí sí caben decimales y objetos). Usa
+  `nameof(...)`, no la cadena: si renombras, el compilador te avisa.
+- **`TheoryData<>`** es `[MemberData]` tipado: si te equivocas de tipo, no compila. La opción por defecto.
+- **`[ClassData]`** pone los datos en su propia clase (reutilizable entre clases de test, o para casos
+  complejos que merecen su archivo).
+
+La regla por defecto: constantes simples, `[InlineData]`; todo lo demás, `TheoryData<>` tipado.
 
 ---
 
-## 7. Lo que te llevas
+## 7. El criterio: cuándo parametrizar y cuándo no
+
+La parametrización es tan cómoda que se abusa de ella. La regla fina: parametriza cuando es el mismo
+comportamiento con datos distintos, y separa cuando son comportamientos distintos. El olfato, si dudas:
+¿solo cambian los valores, o cambia lo que el test verifica?
+
+El antipatrón clásico es un `[Theory]` con un parámetro `bool debeLanzar` y un `if` que, según el caso,
+comprueba un cálculo o una excepción. Eso mete lógica en el test (M3.1) y junta dos comportamientos en un
+método ilegible. Si aparece un `if` para tratar unos casos distinto de otros, tienes dos tests peleándose
+por un cuerpo. Sepáralos.
+
+---
+
+## 8. Lo que te llevas
 
 El laboratorio
-([`material/labs/M4.1-montar-proyecto-xunit.md`](material/labs/M4.1-montar-proyecto-xunit.md)) te hace montar
-el proyecto de cero, escribir tus primeros `[Fact]` sobre la `CalculadoraDescuentos` y leer un fallo de
-verdad. La tarjeta ([`material/tarjetas/M4.1-xunit.md`](material/tarjetas/M4.1-xunit.md)) lo resume en una
-página.
+([`material/labs/M4.2-parametrizar-descuento.md`](material/labs/M4.2-parametrizar-descuento.md)) te hace
+convertir los `[Fact]` del descuento en un `[Theory]`, eligiendo la fuente de datos adecuada. La tarjeta
+([`material/tarjetas/M4.2-theory.md`](material/tarjetas/M4.2-theory.md)) lo resume.
 
-Y enseguida notas algo: para cubrir bien la calculadora necesitas muchos tests casi iguales, y escribirlos
-como `[Fact]` separados —copiar y pegar cambiando dos números— es justo el tedio que detectamos en M2.2.
-Compara `PrimerasPruebasXunitTests.cs` (los tres tramos, un `[Fact]` por caso) con
-`CalculadoraDescuentosTests.cs` (los mismos casos en `[Theory]`): es el mismo trabajo sin la repetición. Esa
-es la puerta a los tests parametrizados, y es lo siguiente: M4.2.
+Y queda algo pendiente que abre el siguiente submódulo: entre los casos del descuento hay algunos que no
+devuelven un número, sino que *lanzan una excepción* —un importe negativo, una cantidad de cero—. Esos no
+se comprueban con `Assert.Equal`, y mezclarlos en el `[Theory]` con un `bool` es justo el antipatrón que
+acabas de ver. Cómo se testea que un código lanza la excepción correcta es M4.3, y cierra el módulo.
