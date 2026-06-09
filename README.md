@@ -1,67 +1,66 @@
-# VentasShop · M7.1 — Análisis de cobertura
+# VentasShop · M7.2 — Falsos positivos y tests frágiles
 
-> Rama `module-07.1/analisis-cobertura`. Checkpoint del curso **TESTNET**. No añade tests de producción:
-> enseña a **generar y leer** el informe de cobertura sobre la suite que ya tienes. Un porcentaje no se
-> mira, se lee.
+> Rama `module-07.2/falsos-positivos`. Checkpoint del curso **TESTNET**. Un test solo vale si su
+> resultado significa algo. Aquí se ven las dos formas de verde que no protege —aserciones débiles y
+> tests inestables— y la herramienta que las caza: **mutation testing con Stryker.NET sobre MTP**.
 
-## La cobertura en este repo (sobre MTP, sin Coverlet)
+## Qué hay en esta rama
 
-El proyecto de tests ya trae el paquete **`Microsoft.Testing.Extensions.CodeCoverage`** (desde M2.3). La
-cobertura se genera por la cobertura de Microsoft Code Coverage, **no con Coverlet** (Coverlet es de la
-plataforma de pruebas antigua —VSTest— y no integra con el runner del curso, MTP).
+- **`tests/.../AsercionesDebilesTests.cs`** — 3 aserciones débiles (anti-ejemplos a propósito: pasan en
+  verde pero no comprueban el valor) + 1 fuerte de contraste (`Assert.Equal(0.15m, tasa)`). El mutante que
+  pone el tramo de volumen a cero (`0.10m → 0.0m`) **sobrevive** a las débiles y **muere** con la fuerte.
+- **`tests/.../RelojTraidorTests.cs`** — el flaky por dependencia del reloj: un test determinista con
+  `RelojFijo` (IReloj, M5.1) que fija «ahora», y el anti-ejemplo frágil con `DateTimeOffset.Now` marcado
+  `[Fact(Skip=...)]` para no pudrir la suite (el lab pide reproducirlo y curarlo).
+- **`tests/.../stryker-config.json`** — config de Stryker (muta `CalculadoraDescuentos` y `Cupon`, umbrales).
 
-```bash
-# vía cómoda (la de M2.3): genera coverage.cobertura.xml
-dotnet test tests/VentasShop.TestsUnitarios -- --coverage --coverage-output-format cobertura
-
-# vía con más control (CI / SonarQube), con el tool dotnet-coverage
-dotnet tool install --global dotnet-coverage
-dotnet-coverage collect "dotnet test tests/VentasShop.TestsUnitarios" -f cobertura -o coverage.cobertura.xml
-```
-
-Del XML al mapa, con ReportGenerator:
+## Mutation testing con Stryker.NET (sobre MTP, NO Coverlet)
 
 ```bash
-dotnet tool install --global dotnet-reportgenerator-globaltool
-reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
-# abre coveragereport/index.html
+dotnet tool install -g dotnet-stryker
+cd tests/VentasShop.TestsUnitarios
+dotnet stryker --test-runner mtp
+# informe en StrykerOutput/.../reports/mutation-report.html
 ```
 
-## Qué mirar en el mapa
+**Por qué `--test-runner mtp`** (a junio de 2026): el proyecto va sobre el runner moderno (MTP), sin la
+plataforma de pruebas antigua (VSTest). Stryker, por defecto, busca los tests por la vía antigua y no los
+encontraría; la opción `--test-runner mtp` (en *preview* desde Stryker 4.13) le dice que use el runner del
+curso. Es el mismo aviso de plataforma que con la cobertura en M7.1.
 
-- Pincha en una clase y mira el **color línea a línea**: verde (ejecutada), rojo (zona ciega), amarillo
-  (decisión con ramas a medias). El amarillo es la información de oro.
-- Mira la columna de **ramas**, no la de líneas (M2.3).
-- La `CalculadoraDescuentos` está **bien cubierta a propósito** —incluido el tope BR-05— para que veas un
-  mapa sano. El test que el capítulo imagina «faltando» (el VIP con pedido grande que llega justo al 15%)
-  existe: es `CoberturaFalsoPositivoTests.CalcularTasaDescuento_VipPedidoGrande_AplicaElTope`.
+**Resultado verificado en esta rama:** mutation score **87,5%** sobre las dos clases (7 mutantes matados,
+**1 superviviente**) — y ese superviviente es justo el «inspector ciego»: el bug que las aserciones débiles
+no cazan. Refuerza la aserción y el mutante muere.
 
-## Verde ≠ probado (la trampa que conecta con M7.2)
+> Stryker es **lento** (ejecuta la suite por cada mutante): una pasada de vez en cuando sobre la lógica
+> crítica, o un pipeline nocturno. No va en cada commit como la cobertura.
 
-`CoberturaFalsoPositivoTests` (de M2.3) lo deja a la vista: un test que **llama** al método pero **no
-comprueba** el resultado pinta la línea de verde igual. El mapa te dice dónde pusiste cámara, no que esté
-enfocando algo. Cómo cazar ese «verde encendido pero ciego» (mutation testing) es M7.2.
+## Tests inestables (flaky)
 
-## El laboratorio
-
-[`material/labs/M7.1-leer-el-mapa.md`](material/labs/M7.1-leer-el-mapa.md): el encargo del hombre del
-tiempo —no cazar todos los rojos, sino hacer la **lista razonada** de cuáles importan (ciudad) y cuáles se
-dejan (océano), con el marco de M2.1—. La entrega es la lista, no un porcentaje más alto. La tarjeta
-([`material/tarjetas/M7.1-cobertura.md`](material/tarjetas/M7.1-cobertura.md)) resume los comandos.
+La causa más común es **el tiempo**. `Cupon.EsValidoEn(ahora)` (BR-06) depende de la fecha: un test que le
+pasa `DateTimeOffset.Now` pasa hoy y fallará tras la caducidad («funciona en junio, peta en julio»). La cura
+es fijar «ahora» con `RelojFijo` (IReloj) — el test se vuelve determinista. Ver `RelojTraidorTests`.
 
 ## Cómo se compila y se ejecuta
 
 ```bash
 dotnet build VentasShop.slnx
-dotnet test  tests/VentasShop.TestsUnitarios     # 73/73
+dotnet test  tests/VentasShop.TestsUnitarios     # 78 verdes + 1 skip (el frágil a propósito)
 dotnet test  tests/VentasShop.TestsIntegracion   # 11/11
 ```
 
+## Nota sobre los anti-ejemplos
+
+`AsercionesDebilesTests` y el test `Skip` de `RelojTraidorTests` están MAL hechos **a propósito**: son el
+material del submódulo, no un modelo a copiar. (El capítulo muestra también `Assert.NotNull(decimal)` como
+débil; aquí se usa `<= 0.15m` en su lugar para no chocar con el analizador xUnit2002 sobre tipos por valor —
+misma lección, variante ejecutable.)
+
 ## Dónde estás en el curso
 
-… → `module-06.4/repositorios` (cierra M6) → **`module-07.1/analisis-cobertura`** ← estás aquí → `module-07.2/...` → …
+… → `module-07.1/analisis-cobertura` → **`module-07.2/falsos-positivos`** ← estás aquí → `module-07.3/...` → …
 
 ## Notas
 
 - Material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Cobertura sobre **MTP** (`Microsoft.Testing.Extensions.CodeCoverage`), no Coverlet.
+- Mutation testing sobre **MTP** (`dotnet stryker --test-runner mtp`), no Coverlet ni Docker.

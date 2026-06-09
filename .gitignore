@@ -427,3 +427,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Mutation testing (Stryker.NET) — artefactos
+StrykerOutput/
+**/StrykerOutput/
