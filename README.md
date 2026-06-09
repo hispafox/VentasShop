@@ -1,50 +1,67 @@
-# VentasShop · M6.4 — Testing de repositorios y acceso a datos
+# VentasShop · M7.1 — Análisis de cobertura
 
-> Rama `module-06.4/repositorios`. Checkpoint del curso **TESTNET**. Cierra el Módulo 6: el patrón
-> Repository como mostrador delante de la base de datos, el CRUD completo contra SQLite in-memory y la
-> estrategia de aislamiento entre tests.
+> Rama `module-07.1/analisis-cobertura`. Checkpoint del curso **TESTNET**. No añade tests de producción:
+> enseña a **generar y leer** el informe de cobertura sobre la suite que ya tienes. Un porcentaje no se
+> mira, se lee.
 
-## Qué hay en esta rama
+## La cobertura en este repo (sobre MTP, sin Coverlet)
 
-- **Repo enriquecido** (`IRepositorioPedidos` + `RepositorioPedidos`): además de `ObtenerPorId`/`Agregar`/`Guardar`,
-  ahora `ObtenerConLineas(Guid)` (con `Include` de líneas y cliente), `ObtenerPorCliente(Guid)` y `Eliminar(Pedido)`.
-- **Borrado en cascada** del pedido a sus líneas en `ContextoVentasShop` (`OnDelete(DeleteBehavior.Cascade)`):
-  SQLite, motor real, exige la integridad referencial; el provider in-memory no se habría quejado.
-- **`tests/.../RepositorioPedidosCrudTests.cs`** — 5 tests de integración (CRUD completo) contra SQLite in-memory:
-  - `Agregar_GuardaElPedidoConSusLineas_YSePuedeRecuperar` — guardar + recuperar con `ObtenerConLineas`.
-  - `ObtenerPorId_UsaFind_YNoCargaLasLineas` — el contraste: `Find` trae el pedido pero **no** las líneas.
-  - `Guardar_PersisteElCambioDeEstado` — actualizar (Confirmar) y comprobar que persiste.
-  - `Eliminar_QuitaElPedidoDeLaBase` — borrar (cascade a las líneas).
-  - `ObtenerPorCliente_DevuelveSoloLosPedidosDeEseCliente` — consulta filtrada por cliente.
-- El doble a mano `RepositorioPedidosEnMemoria` (M5.1) se amplía con los 3 métodos nuevos para seguir compilando.
-- **[`MANUAL.md`](MANUAL.md)** + **[`material/labs/M6.4-crud-y-aislamiento.md`](material/labs/M6.4-crud-y-aislamiento.md)** + **[`material/tarjetas/M6.4-repositorios.md`](material/tarjetas/M6.4-repositorios.md)**.
+El proyecto de tests ya trae el paquete **`Microsoft.Testing.Extensions.CodeCoverage`** (desde M2.3). La
+cobertura se genera por la cobertura de Microsoft Code Coverage, **no con Coverlet** (Coverlet es de la
+plataforma de pruebas antigua —VSTest— y no integra con el runner del curso, MTP).
+
+```bash
+# vía cómoda (la de M2.3): genera coverage.cobertura.xml
+dotnet test tests/VentasShop.TestsUnitarios -- --coverage --coverage-output-format cobertura
+
+# vía con más control (CI / SonarQube), con el tool dotnet-coverage
+dotnet tool install --global dotnet-coverage
+dotnet-coverage collect "dotnet test tests/VentasShop.TestsUnitarios" -f cobertura -o coverage.cobertura.xml
+```
+
+Del XML al mapa, con ReportGenerator:
+
+```bash
+dotnet tool install --global dotnet-reportgenerator-globaltool
+reportgenerator -reports:"**/coverage.cobertura.xml" -targetdir:"coveragereport" -reporttypes:Html
+# abre coveragereport/index.html
+```
+
+## Qué mirar en el mapa
+
+- Pincha en una clase y mira el **color línea a línea**: verde (ejecutada), rojo (zona ciega), amarillo
+  (decisión con ramas a medias). El amarillo es la información de oro.
+- Mira la columna de **ramas**, no la de líneas (M2.3).
+- La `CalculadoraDescuentos` está **bien cubierta a propósito** —incluido el tope BR-05— para que veas un
+  mapa sano. El test que el capítulo imagina «faltando» (el VIP con pedido grande que llega justo al 15%)
+  existe: es `CoberturaFalsoPositivoTests.CalcularTasaDescuento_VipPedidoGrande_AplicaElTope`.
+
+## Verde ≠ probado (la trampa que conecta con M7.2)
+
+`CoberturaFalsoPositivoTests` (de M2.3) lo deja a la vista: un test que **llama** al método pero **no
+comprueba** el resultado pinta la línea de verde igual. El mapa te dice dónde pusiste cámara, no que esté
+enfocando algo. Cómo cazar ese «verde encendido pero ciego» (mutation testing) es M7.2.
+
+## El laboratorio
+
+[`material/labs/M7.1-leer-el-mapa.md`](material/labs/M7.1-leer-el-mapa.md): el encargo del hombre del
+tiempo —no cazar todos los rojos, sino hacer la **lista razonada** de cuáles importan (ciudad) y cuáles se
+dejan (océano), con el marco de M2.1—. La entrega es la lista, no un porcentaje más alto. La tarjeta
+([`material/tarjetas/M7.1-cobertura.md`](material/tarjetas/M7.1-cobertura.md)) resume los comandos.
 
 ## Cómo se compila y se ejecuta
 
 ```bash
 dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios     # 73/73
-dotnet test  tests/VentasShop.TestsIntegracion   # 11/11 (3 in-memory + 3 SQLite + 5 CRUD)
+dotnet test  tests/VentasShop.TestsIntegracion   # 11/11
 ```
-
-## La estrategia de aislamiento de esta rama
-
-Una conexión SQLite in-memory **por test** (el constructor abre, `Dispose` cierra). Como cada conexión
-es una base distinta, cada test arranca con una base limpia y propia: la independencia (M1.3) sale sola,
-sin limpiar tablas a mano. Es la más simple de las tres estrategias del submódulo (recrear / limpiar con
-Respawn / transacción con rollback).
-
-## El contraste que enseña el módulo
-
-`ObtenerPorId` usa `Find`: trae el pedido pero **no** carga sus navegaciones. `ObtenerConLineas` lleva
-`Include`. El test `ObtenerPorId_UsaFind_YNoCargaLasLineas` lo deja a la vista: si lees por la vía sin
-`Include` y esperas líneas, vendrán vacías — y solo un test de integración real lo caza (M6.1).
 
 ## Dónde estás en el curso
 
-… → `module-06.2/ef-core-inmemory` → `module-06.3/sqlite-in-memory` → **`module-06.4/repositorios`** ← estás aquí (cierra M6) → `module-07.1/...` → …
+… → `module-06.4/repositorios` (cierra M6) → **`module-07.1/analisis-cobertura`** ← estás aquí → `module-07.2/...` → …
 
 ## Notas
 
-- Código y material **en castellano**, síncrono. Proyecto **neutro**: sin nombres de cliente.
-- Motor de integración: **SQLite in-memory** (M6.3), sin servidores ni instalaciones externas.
+- Material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
+- Cobertura sobre **MTP** (`Microsoft.Testing.Extensions.CodeCoverage`), no Coverlet.
