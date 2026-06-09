@@ -1,97 +1,107 @@
-# Manual del alumno — M6.2 · Testing con EF Core in-memory
+# Manual del alumno — M6.3 · Testing con SQLite in-memory
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué la base de datos en
-memoria es tan tentadora, qué hace bien y —sobre todo— qué **no comprueba**, para que no te dé una falsa
-sensación de seguridad.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué SQLite in-memory cierra
+la espina que dejó el provider in-memory de M6.2, cuál es su clave técnica (que despista a todo el mundo la
+primera vez) y dónde está su límite honesto.
 
-Tiempo de lectura: ~12 min. Submódulo M6.2 (Tests de Integración y Base de Datos). Estrena el proyecto
-`VentasShop.TestsIntegracion`.
+Tiempo de lectura: ~12 min. Submódulo M6.3 (Tests de Integración con un motor relacional de verdad).
 
 ---
 
 ## 1. La idea en una frase
 
-La base de datos in-memory es rápida y cómoda, pero no es una base de datos relacional: úsala sabiendo
-exactamente qué no comprueba. De hecho, el propio equipo de EF Core la desaconseja para testear
-comportamiento relacional — lo abordamos de frente, no lo ocultamos.
+SQLite en modo in-memory es un motor relacional **de verdad** ejecutándose en RAM: respeta índices únicos,
+claves foráneas y transacciones, y no necesita instalar ni levantar nada. La fidelidad relacional que el
+provider in-memory no daba, sin salir de un test rápido y sin instalar ni levantar nada.
 
 ---
 
-## 2. El simulador de conducción
+## 2. Dos cosas que se llaman «in-memory» (y no son lo mismo)
 
-La base in-memory es un simulador de conducción. Para practicar la lógica —cuándo cambias de marcha, por
-dónde va el trazado— es fantástico: barato, instantáneo, sin consecuencias. Pero no es la carretera: no
-tiene el agarre del asfalto mojado ni cómo responde tu coche al frenar de verdad. Imita el «guardar y leer
-objetos con EF Core» lo justo para practicar la lógica de tu repositorio, pero no es un motor relacional.
-
----
-
-## 3. Cómo se usa
-
-Necesitas el paquete `Microsoft.EntityFrameworkCore.InMemory` y configuras el contexto con
-`UseInMemoryDatabase(nombreBd)`. El nombre es la clave de la independencia: un `Guid` único por test, para
-que cada uno tenga su base aislada (M1.3). Dos contextos con el mismo nombre comparten el almacén, y eso es
-lo que te permite guardar con uno y leer con otro. Mira
-[`tests/.../RepositorioPedidosInMemoryTests.cs`](tests/VentasShop.TestsIntegracion/RepositorioPedidosInMemoryTests.cs).
-
-Un detalle que da bugs sutiles: lee en un contexto **nuevo**, no en el que usaste para guardar. Si lees del
-mismo, EF te devuelve el objeto de su caché de seguimiento sin tocar la «base de datos», y el test pasa
-aunque el guardado real estuviera mal. Y usa `Include(p => p.Lineas)` para traer las líneas, que `Find` por
-sí solo no carga.
+En M6.2 quedó una espina: el provider InMemory de EF Core dejaba pasar la unicidad de producto. Ojo al
+equívoco de nombres. El provider InMemory **no es una base de datos**: es un diccionario que imita a EF, y
+por eso no valida restricciones. SQLite in-memory es otra liga: el motor SQLite de verdad —el mismo que
+llevan el móvil, el navegador y media industria— ejecutándose en memoria en lugar de sobre un fichero. SQL
+real, restricciones reales, transacciones reales.
 
 ---
 
-## 4. Qué no comprueba (la letra pequeña)
+## 3. El coche de verdad en el circuito de pruebas
 
-El provider in-memory no es un motor relacional, así que deja pasar cosas que tu base real no permitiría:
-
-- **El índice único** — guarda dos productos con el mismo código sin rechistar.
-- **La integridad referencial de una clave foránea** y los `CHECK`.
-- **La traducción a SQL** — ejecuta las consultas en memoria, así que una que el motor real rechazaría aquí pasa.
-- **Las transacciones reales, los índices y los triggers.**
-
-Un matiz que importa: **desde EF Core 6, el in-memory sí valida las propiedades obligatorias (`NOT NULL`)** y
-lanza si dejas en nulo algo requerido. Lo que no comprueba es el resto de esta lista.
+El provider in-memory era el simulador de conducción de M6.2: cómodo, pero no la carretera. SQLite in-memory
+es el siguiente escalón, un coche de verdad en el circuito de pruebas: motor real, físicas reales, y no
+tienes que traer el tuyo ni alquilar la pista, está listo en el momento. Su límite es que no es tu coche de
+producción exacto: para SQLite, ese «otra marca» es el dialecto.
 
 ---
 
-## 5. El ejemplo que lo demuestra
+## 4. La clave técnica: la conexión que hay que mantener abierta
 
-VentasShop estrena un campo `Producto.Codigo` con **índice único** en `ContextoVentasShop`
-(`HasIndex(p => p.Codigo).IsUnique()`). El test
-`InMemory_NoRefuerzaElIndiceUnico_GuardaDosProductosConElMismoCodigo` añade dos productos con el mismo
-código y comprueba que `SaveChanges` **no lanza** en in-memory: `Record.Exception(...)` devuelve `null`. Eso
-documenta la limitación. Contra SQL Server real (M6.3), ese mismo `SaveChanges` lanzaría `DbUpdateException`.
-El simulador y la carretera, en una pantalla.
+Es el detalle que más despista, y si no lo conoces te vuelve loco: **la base en memoria vive mientras la
+conexión esté abierta**. En cuanto se cierra, la base desaparece con todo dentro. EF Core, por defecto, abre
+y cierra la conexión en cada operación, lo que con SQLite in-memory significaría crear una base vacía,
+usarla un instante y tirarla.
 
----
+El truco: abres tú la conexión y la mantienes viva durante todo el test. Fíjate en dos cosas:
 
-## 6. Cuándo sí usarlo
+- a `UseSqlite` le pasas el **objeto** `SqliteConnection` ya abierto, **no una cadena** de texto, para que
+  todos los contextos que la compartan vean la misma base;
+- `EnsureCreated` crea el esquema desde tu modelo, con todas sus restricciones e índices reales (incluido el
+  índice único del código de producto). **No `MigrateAsync`**: el repo no tiene migraciones.
 
-El in-memory no es basura: tiene su nicho. Sirve cuando pruebas la lógica de un repositorio o una consulta
-donde las restricciones no son lo que verificas, quieres tests rápidos sin Docker, y eres consciente de que
-no validas el comportamiento relacional. Si empiezas de cero, plantéate **SQLite en modo in-memory** como
-punto medio: es un motor relacional de verdad (respeta restricciones, traduce a SQL) y sigue siendo rápido y
-sin Docker. Para fidelidad total a tu motor, Testcontainers (M6.3).
-
----
-
-## 7. Errores comunes
-
-**Confiar en el in-memory para validar restricciones** (es justo lo que no hace). **Leer del mismo contexto
-con el que escribiste** (te devuelve la caché de EF). **Compartir sin querer el nombre de la base** entre
-tests (se pisan según el orden). Y **creer que tienes tests de tu capa de datos** cuando solo tienes tests
-de su lógica, no de su comportamiento real contra el motor.
+Mira [`tests/.../RepositorioPedidosSqliteTests.cs`](tests/VentasShop.TestsIntegracion/RepositorioPedidosSqliteTests.cs):
+el constructor abre la conexión y crea el esquema, `Dispose` la cierra, y como xUnit crea una instancia de la
+clase por test, cada uno recibe su base limpia y propia (independencia de M1.3 sin esfuerzo).
 
 ---
 
-## 8. Lo que te llevas
+## 5. El ejemplo que lo demuestra (la recompensa)
 
-El laboratorio ([`material/labs/M6.2-in-memory-y-su-limite.md`](material/labs/M6.2-in-memory-y-su-limite.md))
-tiene dos partes: la cómoda (CRUD y consultas del repositorio con in-memory) y la reveladora (ver que la
-unicidad **no** salta). La tarjeta ([`material/tarjetas/M6.2-ef-in-memory.md`](material/tarjetas/M6.2-ef-in-memory.md))
+El test `Sqlite_RefuerzaElIndiceUnico_DosProductosConElMismoCodigoLanzan` añade dos productos con el mismo
+`Codigo` y, al guardar, **espera que salte**: `guardar.Should().Throw<DbUpdateException>()`. Y salta. Es
+justo el escenario que el provider in-memory de M6.2 dejaba pasar (`Record.Exception(...)` devolvía `null`).
+El índice único existe de verdad en la base, el segundo producto lo viola, y `SaveChanges` lanza. El
+simulador y el coche de verdad, en una sola suite. Y con la unicidad van también las claves foráneas, las
+transacciones reales y la traducción de tus consultas a SQL.
+
+---
+
+## 6. El límite honesto
+
+SQLite es un motor relacional real, pero **no es tu motor de producción**. Si en producción usas SQL Server
+o PostgreSQL, hay diferencias de dialecto: algunos tipos de dato, ciertas funciones de SQL, el comportamiento
+exacto de la ordenación de cadenas. La mayoría de las veces no lo notas; de vez en cuando, una consulta que
+pasa en SQLite se comporta distinto contra tu motor real. SQLite te da casi toda la fidelidad relacional por
+casi ningún coste; para el poco donde el dialecto exacto importa, el juez es tu motor real, donde lo tengas.
+
+---
+
+## 7. La estrategia: cuándo cada uno
+
+De la pirámide (M1.2), dentro de la integración: **unitarios** para toda la lógica que no toca base de datos
+(la mayoría); **provider in-memory** para tests rápidos de la lógica de una consulta donde las restricciones
+no son lo que pruebas; **SQLite in-memory** para validar de verdad el comportamiento relacional sin instalar
+nada (tu caballo de batalla de integración); y, para lo poquísimo donde el dialecto exacto importa, tu motor
+real. No es «SQLite para todo», igual que no era «in-memory para todo».
+
+---
+
+## 8. Errores comunes
+
+**Dejar que la conexión se cierre** (la base desaparece y aparecen «tablas que no existen»; mantenla abierta,
+pasa el objeto). **Creer que SQLite es tu motor de producción** (para el dialecto, tu motor real es el juez).
+**Compartir una conexión entre tests** (comparten base y se pisan; una conexión por test). **Olvidar
+`EnsureCreated`** (la base nace vacía y sin él no hay tablas).
+
+---
+
+## 9. Lo que te llevas
+
+El laboratorio ([`material/labs/M6.3-el-contraste.md`](material/labs/M6.3-el-contraste.md)) es el contraste
+estrella: coge los tests de repositorio que escribiste con el provider in-memory en M6.2 y ejecútalos también
+contra SQLite, comparando. Los de lógica de consulta pasan en ambos; la unicidad solo se valida de verdad
+contra SQLite. La tarjeta ([`material/tarjetas/M6.3-sqlite-in-memory.md`](material/tarjetas/M6.3-sqlite-in-memory.md))
 lo resume.
 
-En M6.3 nos bajamos del simulador y nos subimos a la carretera: una base de datos **real** (tu mismo motor,
-SQL Server) pero efímera, levantada en un contenedor Docker para el test con Testcontainers. Ahí el test de
-la unicidad sí cazará la restricción.
+En M6.4 cerramos la capa de datos con el patrón que la organiza y la hace testeable: el patrón Repository, el
+testing del CRUD completo y cómo manejar las transacciones en los tests.

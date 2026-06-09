@@ -19,7 +19,7 @@ el código compila y los tests pasan, y los capítulos del curso enlazan aquí. 
 4. **Stack y convención por módulo.** xUnit v3 + `Assert` nativo hasta M5.3; NSubstitute entra en
    M5.2; AwesomeAssertions en M5.3; cobertura (`Microsoft.Testing.Extensions.CodeCoverage`, sobre MTP)
    en M2.3 y a fondo (ReportGenerator, `dotnet-coverage`) en M7; EF Core InMemory en M6.2 y
-   Testcontainers en M6.3. Cada rama refleja la progresión: no metas una librería antes de su módulo.
+   SQLite in-memory en M6.3 (motor relacional real, sin instalar ni levantar nada). Cada rama refleja la progresión: no metas una librería antes de su módulo.
    Coverlet (collector/msbuild) es de VSTest y NO integra con MTP: no se usa en este repo.
 5. **Trazabilidad regla → test.** Cada test referencia su `BR-XX` (ver README).
 6. **Prosa en castellano humano.** Los `MANUAL.md` y `README.md` de cada rama se redactan con el

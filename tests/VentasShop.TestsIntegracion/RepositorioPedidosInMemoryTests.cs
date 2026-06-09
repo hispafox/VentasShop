@@ -11,7 +11,7 @@ namespace VentasShop.TestsIntegracion;
 /// M6.2 — Primeros tests de INTEGRACIÓN, con el provider in-memory de EF Core. Practican la lógica del
 /// repositorio (guardar/recuperar/consultar) y, sobre todo, DEMUESTRAN una limitación: el in-memory no
 /// refuerza el índice único. Es el simulador de conducción: vale para la lógica, no es la carretera.
-/// El mismo escenario de unicidad, contra SQL Server real con Testcontainers, sí salta (M6.3).
+/// El mismo escenario de unicidad, contra SQLite in-memory (un motor relacional de verdad), sí salta (M6.3).
 /// </summary>
 public class RepositorioPedidosInMemoryTests
 {
@@ -88,7 +88,7 @@ public class RepositorioPedidosInMemoryTests
         contexto.Productos.Add(new Producto { Codigo = "ABC", Nombre = "Ratón",   PrecioUnitario = new Dinero(20m, "EUR"), UnidadesStock = 10 });
 
         // El provider in-memory NO refuerza el índice único: guarda los dos sin lanzar.
-        // Contra SQL Server real (M6.3) este mismo SaveChanges lanzaría DbUpdateException.
+        // Contra SQLite in-memory (M6.3) este mismo SaveChanges lanzaría DbUpdateException.
         var excepcion = Record.Exception(() => contexto.SaveChanges());
 
         excepcion.Should().BeNull();   // documenta la limitación: el simulador no es la carretera
