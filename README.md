@@ -1,20 +1,17 @@
-# VentasShop · M5.3 — Aserciones fluidas con AwesomeAssertions
+# VentasShop · M6.1 — Tests unitarios vs. tests de integración
 
-> Rama `module-05.3/aserciones-fluidas`. Checkpoint del curso **TESTNET**. El salto de `Assert.Equal` a
-> `Should().Be(...)` con **AwesomeAssertions**: la ganancia real es el mensaje cuando el test falla.
-> **Cierra el Módulo 5.**
+> Rama `module-06.1/unit-vs-integracion`. Checkpoint del curso **TESTNET**. Submódulo **conceptual / de
+> estrategia**: cuándo un test va a unitario y cuándo a integración. **Abre el Módulo 6.** No añade tests
+> nuevos; el código contra base de datos llega en 6.2 (EF Core in-memory), 6.3 (Testcontainers) y 6.4.
 
 ## Qué hay en esta rama
 
-- **AwesomeAssertions 9.4.0** en [`tests/.../VentasShop.TestsUnitarios.csproj`](tests/VentasShop.TestsUnitarios/VentasShop.TestsUnitarios.csproj) (`using AwesomeAssertions;`).
-- **`tests/.../AsercionesFluidasTests.cs`** — 5 tests fluidos: valor exacto (`tasa.Should().Be(0.10m)`),
-  colecciones (`HaveCount`/`Contain`/`AllSatisfy` sobre las líneas), `BeEquivalentTo` con `Excluding` de los
-  Id autogenerados, excepción fluida (`Invoking(...).Should().Throw<PedidoSinLineasException>().WithMessage("*sin líneas*")`)
-  y `.Because()` sobre el estado del pedido pagado.
-- **[`MANUAL.md`](MANUAL.md)** — el análisis de sangre, el mensaje de fallo, el repertorio, `BeEquivalentTo`,
-  excepciones fluidas, `.Because()`, por qué AwesomeAssertions y los errores comunes.
-- **[`material/tarjetas/M5.3-awesomeassertions.md`](material/tarjetas/M5.3-awesomeassertions.md)** — tarjeta de 1 página.
-- **[`material/labs/M5.3-aserciones-fluidas.md`](material/labs/M5.3-aserciones-fluidas.md)** — lab: reescribir a fluidas y comparar mensajes de fallo.
+- **[`material/labs/M6.1-clasificar-unit-integracion.md`](material/labs/M6.1-clasificar-unit-integracion.md)**
+  — lab de **criterio**: clasificar cada pieza de VentasShop como unitario o integración con una sola
+  pregunta, «¿cruza la frontera de la base de datos?» (incluye solución).
+- **[`material/tarjetas/M6.1-unit-vs-integracion.md`](material/tarjetas/M6.1-unit-vs-integracion.md)** — tarjeta de 1 página.
+- **[`MANUAL.md`](MANUAL.md)** — la espina de M5, la orquesta (unit vs ensayo general), lo que solo caza la
+  integración, la pirámide, el coste y el reparto de VentasShop.
 
 ## Cómo se compila y se ejecuta
 
@@ -23,34 +20,34 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (73/73). `AsercionesFluidasTests.cs` añade 5 tests; el código de
-producción no cambia.
+Los **unitarios** siguen en verde (73/73): este submódulo **no cambia código** ni añade tests, es de
+estrategia. El proyecto `tests/VentasShop.TestsIntegracion` existe pero está vacío hasta M6.2.
 
-## Lo que tienes que llevarte
+## El criterio (lo que tienes que llevarte)
 
-- **El valor exacto:** `tasa.Should().Be(0.10m)`, no `BeGreaterThan(0)`.
-- **Colecciones:** `pedido.Lineas.Should().AllSatisfy(l => l.Subtotal.Importe.Should().BePositive())`.
-- **Objeto entero:** `real.Should().BeEquivalentTo(esperado, opc => opc.Excluding(m => m.Name == "Id"))`.
-- **Excepción + mensaje:** `pedido.Invoking(p => p.Pagar()).Should().Throw<...>().WithMessage("*sin líneas*")`.
+**¿Puedo comprobar esto de verdad sin una base de datos real?**
+- **Sí** → unitario (lógica aislada / servicio con dobles). `VentasShop.TestsUnitarios`.
+- **No, necesito el motor** → integración (piezas reales). `VentasShop.TestsIntegracion`.
 
-## El detalle de `BeEquivalentTo` con VentasShop
+## El reparto de VentasShop
 
-El `Pedido`, sus `LineaPedido` y el `Cliente` llevan un `Id` (`Guid.NewGuid()`) por instancia. Comparar dos
-pedidos construidos por separado **fallaría** por esos Id. Por eso el test los excluye con
-`Excluding(m => m.Name == "Id")` — justo el aviso de «abusar de `BeEquivalentTo`» del MANUAL, hecho código.
+- **Unitario:** `CalculadoraDescuentos`, invariantes de `Cantidad`/`Dinero`, transiciones del `Pedido`,
+  `ServicioPedidos` con dobles. El descuento se queda aquí (lógica pura).
+- **Integración (6.2/6.3/6.4):** `RepositorioPedidos` real (guardar/recuperar pedido con líneas), consulta
+  «pedidos de un cliente» contra el motor, restricción «no se guarda un pedido sin cliente» (FK obligatoria).
 
-## Por qué AwesomeAssertions
+## Por qué no hay tests aquí
 
-FluentAssertions v8 (enero 2025) pasó a licencia de pago. AwesomeAssertions es el fork libre de la v7, con
-API idéntico: el namespace es `AwesomeAssertions`, y todo lo demás es igual. Shouldly es la otra alternativa
-gratuita; los conceptos se transfieren.
+M6.1 es la foto de estrategia que da sentido a los tres submódulos siguientes. Escribir tests de integración
+«por levantar bases de datos» antes de tener claro el reparto es justo el error que este submódulo evita. El
+proyecto `VentasShop.TestsIntegracion` ya está sembrado (desde M4.1); se llena en M6.2 en adelante.
 
 ## Dónde estás en el curso
 
-… → `module-05.2/mocking-nsubstitute` → **`module-05.3/aserciones-fluidas`** ← estás aquí (cierra el Módulo 5) → `module-06.1/...` → …
+… → `module-05.3/aserciones-fluidas` (cierra el Módulo 5) → **`module-06.1/unit-vs-integracion`** ← estás aquí (abre el Módulo 6) → `module-06.2/ef-core-inmemory` → …
 
 ## Notas
 
-- Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Cierra el Módulo 5 (dobles + NSubstitute + aserciones fluidas). El Módulo 6 es integración con piezas reales.
-- `Invoking` es API válida; la forma alternativa es `Action acto = () => pedido.Pagar(); acto.Should().Throw<...>()`.
+- Material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
+- Conceptual: el código real contra BD es 6.2 (EF Core in-memory), 6.3 (Testcontainers.MsSql), 6.4 (repositorios).
+- Criterio único: «¿cruza la frontera de la base de datos?». La pirámide manda (M1.2): muchos unit, pocos integración.
