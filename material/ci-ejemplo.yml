@@ -1,0 +1,42 @@
+# M8.2 — Ejemplo NEUTRO y de referencia de un gate de CI (GitHub Actions).
+# NO está en .github/workflows/ a propósito: es material didáctico, no un workflow activo.
+# Para activarlo en un proyecto real, cópialo a .github/workflows/ci.yml y ajústalo.
+#
+# El gate hace tres cosas en cada push/PR: restaurar, compilar y lanzar los tests.
+# Si algún test falla, la build se pone roja y el codigo NO entra en la rama principal.
+
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restaurar
+        run: dotnet restore VentasShop.slnx
+
+      - name: Compilar
+        run: dotnet build VentasShop.slnx --no-restore
+
+      # El gate: si fallan los tests, este paso falla y bloquea el merge.
+      # Cobertura en la MISMA pasada con Microsoft Code Coverage (MTP), NO Coverlet:
+      #   dotnet test ... -- --coverage --coverage-output-format cobertura
+      - name: Tests (unitarios + integracion)
+        run: dotnet test VentasShop.slnx --no-build
+
+# Reparto recomendado (M8.2):
+#  - En cada push:   los unitarios (rapidos)  -> feedback inmediato.
+#  - En cada merge:  + los de integracion.
+#  - Nocturno:       el mutation testing (Stryker, dotnet stryker --test-runner mtp)
+#                    y una pasada completa de integracion (lo lento, que no robe tiempo).

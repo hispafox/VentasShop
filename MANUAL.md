@@ -1,100 +1,75 @@
-# Manual del alumno — M8.1 · Diagnóstico del proyecto
+# Manual del alumno — M8.2 · Definir la estrategia
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué el primer trabajo en un
-proyecto real no es escribir tests, sino diagnosticar y abrir el código para que se deje testear.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué a un sistema en
+producción no se le ponen tests a lo loco, sino con un plan por fases que se ejecuta sin pararlo.
 
-Tiempo de lectura: ~12 min. Submódulo M8.1 (abre el Módulo 8).
-
----
-
-## 1. Se acabó la autoescuela
-
-Siete módulos sobre VentasShop, que es un proyecto de laboratorio: limpio, en capas, con DI desde el primer
-día. El proyecto de tu trabajo no se parece: sin tests tras años de vida, una clase de dos mil líneas, métodos
-que crean por dentro su base de datos y leen la hora del sistema. Si abres el editor y empiezas a escribir
-`[Fact]`, te estrellas: no se deja testear. Antes hay un trabajo de **criterio**: diagnosticar.
+Tiempo de lectura: ~11 min. Submódulo M8.2.
 
 ---
 
-## 2. Urgencias y triaje
+## 1. El entusiasmo no es una estrategia
 
-Eres el médico de guardia con quince pacientes. No los atiendes por orden de llegada ni empiezas por el que
-más grita: haces **triaje**, una pasada que no cura, solo clasifica (crítico / aguanta / puede esperar). Y al
-paciente agitado, antes de tratarlo, le pones una vía para *poder* trabajar con él. Diagnosticar un proyecto
-es igual: triaje primero, vía (refactor mínimo) después, tratamiento (el test) al final.
-
----
-
-## 3. El triaje: qué es crítico
-
-La regla es la de M2.1: riesgo por consecuencia. *Si esto se rompe, ¿qué pasa?* y *¿cada cuánto se toca?* El
-cálculo de facturación que mueve dinero y cambia cada sprint es la cocina con la chimenea encendida; el
-importador que se tocó hace tres años puede esperar. Una señal gratis: el **historial de Git**. Un archivo que
-cambia cada semana es donde se meten bugs cada semana. Empieza por la cocina, no por el recibidor.
+En M8.1 diagnosticaste y abriste costuras. Pero sin plan, el equipo empieza con ganas, escribe tests a salto
+de mata y a las tres semanas la iniciativa muere con cuarenta tests dispersos. Y hay una restricción que lo
+cambia todo: **el sistema está en producción y no se puede parar.** No hay «paramos dos meses». Hay que
+mejorar la red de un sistema que funciona, sin apagarlo.
 
 ---
 
-## 4. Por qué un código no se deja testear
+## 2. Reparar el barco sin dejar de navegar
 
-Mira el legacy `NotificadorPedidos` (neutro, inventado). Tiene cuatro **clavos** que impiden el test:
-
-```csharp
-var repo = new RepositorioPedidosSql("Server=prod-db;...");   // 1. acceso a datos clavado a producción
-...
-if (DateTime.Now.Hour < 22) { ... }                          // 2. depende del reloj del sistema
-    var smtp = new SmtpClient("smtp.empresa.local");
-    smtp.Send(...);                                            // 3. manda un correo de verdad
-Logger.Instance.Log(...);                                      // 4. singleton estático global
-```
-
-Cada clavo ata la clase a una pieza del mundo real, de forma que no puedes interponer un doble. Y un test
-unitario es ejecutar tu lógica con las dependencias dobladas (M5). Sin sitio para el doble, no hay test.
+Un barco viejo que navega, cargado, sin puerto cerca: hay que repararlo en marcha. Aseguras primero lo que
+**te hundiría** (las vías de agua en la línea de flotación), luego los sistemas de maniobra (timón, bombas)
+y por último los acabados. Tabla a tabla, sin parar. Poner tests a un sistema en producción es esto.
 
 ---
 
-## 5. Costura (seam)
+## 3. El plan por fases: F1, F2, F3
 
-Una **costura** (Feathers, *Working Effectively with Legacy Code*) es un sitio donde puedes cambiar el
-comportamiento sin editar ese código, normalmente sustituyendo una dependencia. VentasShop está lleno de
-costuras (cada interfaz inyectada). El legacy no tiene ninguna: todo soldado. Diagnosticar la testabilidad es
-buscar costuras: si las hay, testeas hoy; si no, abres una.
+**F1 — la línea de flotación.** Tests **unitarios** del núcleo de negocio crítico (lo que mueve dinero y
+reglas). Es la fase de mayor retorno: partiendo de cero, los primeros tests quitan los riesgos más gordos a
+coste bajísimo (la curva de M2.3, al revés). Aplica las costuras de M8.1 + dobles (M5).
 
----
+**F2 — los sistemas de maniobra.** Tests de **integración** (M6) en las fronteras: base de datos, servicios
+externos. Cubren fallos que el unitario no ve (una restricción de BD, un mapeo de EF mal puesto). Recuerda
+M6.3: hay fallos que solo caza el motor real (SQLite in-memory). Más lenta y cara; por eso va después.
 
-## 6. La intervención mínima
-
-El cambio más pequeño que abre una costura, sin más. Inyección de dependencias (M5) aplicada al revés: la
-*introduces* en código que no la tenía. Las cuatro dependencias clavadas pasan a cuatro parámetros del
-constructor (`IAccesoPedidos`, `IReloj`, `IEnviadorCorreo`, `ILogger<>`). La lógica de dentro es idéntica
-línea por línea: **cambias la estructura, no el comportamiento**. Mira la versión refactorizada en
-[`Legacy/NotificadorPedidos.cs`](tests/VentasShop.TestsUnitarios/Legacy/NotificadorPedidos.cs) y su test en
-[`Legacy/NotificadorPedidosTests.cs`](tests/VentasShop.TestsUnitarios/Legacy/NotificadorPedidosTests.cs):
-la clase que era intestable ahora se prueba con `RelojFijo`, un acceso falso, un enviador espía y `LoggerEspia`.
+**F3 — el automatismo.** El **gate de CI** (aquí se monta; M7.3 solo lo nombró). Un servidor (GitHub Actions,
+Azure Pipelines) ejecuta la suite en cada cambio y, si algo falla, ese código no entra. Sobre esa base:
+cobertura en la misma pasada (`dotnet test -- --coverage`, Microsoft Code Coverage; **no Coverlet**), informe
+de ReportGenerator, o SonarQube. Y no todo va en cada push: unitarios siempre, integración en cada merge, lo
+pesado (mutation testing) de noche. Ver [`material/ci-ejemplo.yml`](material/ci-ejemplo.yml).
 
 ---
 
-## 7. El huevo y la gallina
+## 4. Un objetivo de cobertura que no sea mentira
 
-«Para refactorizar con seguridad necesito tests, pero el código no se deja testear hasta que lo refactorizo.»
-Se rompe por dos sitios: los refactors que abren costuras (extraer interfaz, introducir parámetro) son
-mecánicos y de bajísimo riesgo —tu IDE los hace—, así que te los permites antes de tener tests; y para cuando
-el cambio da respeto, el **test de caracterización**: fija lo que el código *hace ahora* (no lo que debería),
-como una foto que se pone roja si al refactorizar cambias el comportamiento sin querer.
+**No** fijes un 80% global con fecha: o desmoraliza o invita a la trampa de M2.3. **Sí** un objetivo por
+**zona** (la lógica crítica de F1 alto, cerca del 80-90% de ramas; el andamiaje bajo) y **creciente**:
+cobertura sobre código nuevo (M7.1). La global sube sola, como consecuencia de trabajar bien.
 
 ---
 
-## 8. Errores comunes
+## 5. Confirmar el stack
 
-Empezar por donde no toca (la primera clase, no la crítica). Querer dejarlo bonito (reescribir la clase entera
-cuando solo había que abrir una costura). Refactor sin red en código que da respeto (sin un test de
-caracterización antes). Y diagnosticar para siempre (semanas de análisis sin un test). El triaje es rápido a
-propósito.
+Antes del primer test, decide con el equipo qué herramientas: ¿se adopta el stack del curso (xUnit v3,
+NSubstitute, AwesomeAssertions, Microsoft Code Coverage/MTP) o se respeta el que el proyecto ya arrastra? Es
+una decisión de una vez, por escrito antes de empezar. Cambiarla con cincuenta tests hechos es de lo más caro
+que hay.
 
 ---
 
-## 9. Lo que te llevas
+## 6. Errores comunes
 
-El laboratorio ([`material/labs/M8.1-diagnostico-legacy.md`](material/labs/M8.1-diagnostico-legacy.md)): un
-legacy con sus clavos que diagnosticas (triaje + costuras) y abres con el refactor mínimo, sin tocar la
-lógica. La entrega no es una suite de tests: es un proyecto que antes no se podía testear y ahora sí. En M8.2,
-la estrategia por fases para meterle red a todo el sistema sin pararlo.
+Querer **parar el barco** (el negocio no lo acepta). **Empezar por F2/F3** (la pintura antes que el casco).
+El **objetivo global con fecha** (la trampa de M2.3 a escala de proyecto). Y **planificar para siempre**: el
+plan bueno cabe en una página y se empieza.
+
+---
+
+## 7. Lo que te llevas
+
+El laboratorio ([`material/labs/M8.2-hoja-de-ruta.md`](material/labs/M8.2-hoja-de-ruta.md)): conviertes el
+diagnóstico de M8.1 en una hoja de ruta F1-F2-F3 en una página, con objetivo por zona y un esbozo del gate.
+La entrega es el plan, no tests. En M8.3, el taller: bajamos al código real y escribimos los primeros tests
+aplicando todo el curso. Cierra el curso.
