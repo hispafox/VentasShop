@@ -1,53 +1,52 @@
-# VentasShop · M6.1 — Tests unitarios vs. tests de integración
+# VentasShop · M6.2 — Testing con EF Core in-memory
 
-> Rama `module-06.1/unit-vs-integracion`. Checkpoint del curso **TESTNET**. Submódulo **conceptual / de
-> estrategia**: cuándo un test va a unitario y cuándo a integración. **Abre el Módulo 6.** No añade tests
-> nuevos; el código contra base de datos llega en 6.2 (EF Core in-memory), 6.3 (Testcontainers) y 6.4.
+> Rama `module-06.2/ef-core-inmemory`. Checkpoint del curso **TESTNET**. **Estrena el proyecto
+> `VentasShop.TestsIntegracion`** con el provider in-memory de EF Core: rápido y sin Docker, pero no es un
+> motor relacional. Aquí se ve, en una pantalla, qué **no** comprueba.
 
 ## Qué hay en esta rama
 
-- **[`material/labs/M6.1-clasificar-unit-integracion.md`](material/labs/M6.1-clasificar-unit-integracion.md)**
-  — lab de **criterio**: clasificar cada pieza de VentasShop como unitario o integración con una sola
-  pregunta, «¿cruza la frontera de la base de datos?» (incluye solución).
-- **[`material/tarjetas/M6.1-unit-vs-integracion.md`](material/tarjetas/M6.1-unit-vs-integracion.md)** — tarjeta de 1 página.
-- **[`MANUAL.md`](MANUAL.md)** — la espina de M5, la orquesta (unit vs ensayo general), lo que solo caza la
-  integración, la pirámide, el coste y el reparto de VentasShop.
+- **Cambio de dominio:** `Producto` estrena el campo `Codigo` (SKU), con **índice único** en
+  `ContextoVentasShop` (`HasIndex(p => p.Codigo).IsUnique()`). Es la restricción que el in-memory no
+  refuerza y que SQL Server real sí cazará (M6.3).
+- **`Microsoft.EntityFrameworkCore.InMemory` + `AwesomeAssertions`** en `tests/VentasShop.TestsIntegracion`.
+- **`tests/.../RepositorioPedidosInMemoryTests.cs`** — 3 tests de integración:
+  - `GuardarPedido_DespuesSePuedeRecuperarConSusLineas` — guardar con `Agregar`, leer en contexto NUEVO con `Include`.
+  - `Consulta_PedidosDeUnCliente_DevuelveSoloLosSuyos` — consulta filtrada por cliente.
+  - `InMemory_NoRefuerzaElIndiceUnico_GuardaDosProductosConElMismoCodigo` — **documenta la limitación**:
+    `SaveChanges` con código duplicado **no lanza** en in-memory (`Record.Exception` → `null`).
+- **[`MANUAL.md`](MANUAL.md)** — el simulador, cómo se usa, qué no comprueba (con el matiz EF 6+), el ejemplo y cuándo sí.
+- **[`material/tarjetas/M6.2-ef-in-memory.md`](material/tarjetas/M6.2-ef-in-memory.md)** + **[`material/labs/M6.2-in-memory-y-su-limite.md`](material/labs/M6.2-in-memory-y-su-limite.md)**.
 
 ## Cómo se compila y se ejecuta
 
 ```bash
 dotnet build VentasShop.slnx
-dotnet test  tests/VentasShop.TestsUnitarios
+dotnet test  tests/VentasShop.TestsUnitarios     # 73/73
+dotnet test  tests/VentasShop.TestsIntegracion   # 3/3 (NUEVO)
 ```
 
-Los **unitarios** siguen en verde (73/73): este submódulo **no cambia código** ni añade tests, es de
-estrategia. El proyecto `tests/VentasShop.TestsIntegracion` existe pero está vacío hasta M6.2.
+Los **unitarios** siguen en verde (73/73) y el proyecto de **integración** estrena 3 tests en verde. El
+código de producción solo cambia para añadir `Producto.Codigo` + su índice único.
 
-## El criterio (lo que tienes que llevarte)
+## El contraste con M6.3
 
-**¿Puedo comprobar esto de verdad sin una base de datos real?**
-- **Sí** → unitario (lógica aislada / servicio con dobles). `VentasShop.TestsUnitarios`.
-- **No, necesito el motor** → integración (piezas reales). `VentasShop.TestsIntegracion`.
+El test `InMemory_NoRefuerzaElIndiceUnico_...` pasa **porque** el in-memory NO valida el índice único:
+`Record.Exception(() => contexto.SaveChanges())` devuelve `null`. En M6.3, el mismo escenario contra SQL
+Server real (Testcontainers) hará que `SaveChanges` lance `DbUpdateException`. Mismo código, distinto motor:
+el simulador no es la carretera.
 
-## El reparto de VentasShop
+## Detalles que enseña
 
-- **Unitario:** `CalculadoraDescuentos`, invariantes de `Cantidad`/`Dinero`, transiciones del `Pedido`,
-  `ServicioPedidos` con dobles. El descuento se queda aquí (lógica pura).
-- **Integración (6.2/6.3/6.4):** `RepositorioPedidos` real (guardar/recuperar pedido con líneas), consulta
-  «pedidos de un cliente» contra el motor, restricción «no se guarda un pedido sin cliente» (FK obligatoria).
-
-## Por qué no hay tests aquí
-
-M6.1 es la foto de estrategia que da sentido a los tres submódulos siguientes. Escribir tests de integración
-«por levantar bases de datos» antes de tener claro el reparto es justo el error que este submódulo evita. El
-proyecto `VentasShop.TestsIntegracion` ya está sembrado (desde M4.1); se llena en M6.2 en adelante.
+- **Contexto nuevo para leer** (no la caché de seguimiento de EF) — con el mismo nombre de base.
+- **`Include`** para cargar las navegaciones (`Find` no las trae).
+- **Nombre de base único por test** (`Guid`) = independencia.
 
 ## Dónde estás en el curso
 
-… → `module-05.3/aserciones-fluidas` (cierra el Módulo 5) → **`module-06.1/unit-vs-integracion`** ← estás aquí (abre el Módulo 6) → `module-06.2/ef-core-inmemory` → …
+… → `module-06.1/unit-vs-integracion` → **`module-06.2/ef-core-inmemory`** ← estás aquí → `module-06.3/testcontainers` → …
 
 ## Notas
 
-- Material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Conceptual: el código real contra BD es 6.2 (EF Core in-memory), 6.3 (Testcontainers.MsSql), 6.4 (repositorios).
-- Criterio único: «¿cruza la frontera de la base de datos?». La pirámide manda (M1.2): muchos unit, pocos integración.
+- Código y material **en castellano**, síncrono (el repo es síncrono). Proyecto **neutro**: sin nombres de cliente.
+- El equipo de EF desaconseja in-memory para lo relacional; se aborda de frente. SQLite in-memory es el punto medio; Testcontainers (M6.3) la fidelidad total.

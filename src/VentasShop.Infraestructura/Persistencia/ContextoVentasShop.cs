@@ -40,6 +40,8 @@ public class ContextoVentasShop : DbContext
         modelo.Entity<Producto>(b =>
         {
             b.HasKey(p => p.Id);
+            b.Property(p => p.Codigo).IsRequired();
+            b.HasIndex(p => p.Codigo).IsUnique();   // no dos productos con el mismo codigo (M6.2/M6.3)
             b.Property(p => p.Nombre).IsRequired();
             b.Property(p => p.PrecioUnitario).HasConversion(conversorDinero);
         });

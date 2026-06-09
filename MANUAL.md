@@ -1,87 +1,97 @@
-# Manual del alumno — M6.1 · Tests unitarios vs. tests de integración
+# Manual del alumno — M6.2 · Testing con EF Core in-memory
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué los tests con dobles no
-bastan, qué tipo de bug solo aparece contra una base de datos real, y cómo repartir tu suite sin penalizar
-el ciclo. **Abre el Módulo 6.** Es conceptual: el código contra BD llega en 6.2, 6.3 y 6.4.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué la base de datos en
+memoria es tan tentadora, qué hace bien y —sobre todo— qué **no comprueba**, para que no te dé una falsa
+sensación de seguridad.
 
-Tiempo de lectura: ~10 min. Submódulo M6.1 (Tests de Integración y Base de Datos).
+Tiempo de lectura: ~12 min. Submódulo M6.2 (Tests de Integración y Base de Datos). Estrena el proyecto
+`VentasShop.TestsIntegracion`.
 
 ---
 
 ## 1. La idea en una frase
 
-El test unitario prueba que cada pieza funciona; el de integración prueba que las piezas encajan. No es uno o
-el otro: hacen falta los dos, en la proporción de la pirámide (M1.2).
+La base de datos in-memory es rápida y cómoda, pero no es una base de datos relacional: úsala sabiendo
+exactamente qué no comprueba. De hecho, el propio equipo de EF Core la desaconseja para testear
+comportamiento relacional — lo abordamos de frente, no lo ocultamos.
 
 ---
 
-## 2. La espina que dejó M5
+## 2. El simulador de conducción
 
-En M5 testeaste el `ServicioPedidos` sustituyendo sus dependencias por dobles. Rápido y limpio, pero con un
-punto ciego: el doble del repositorio te devuelve el pedido que tú le dijiste que devolviera. Nunca compruebas
-si tu `RepositorioPedidos` real guarda y recupera bien contra la base de datos. En esa costura viven bugs que
-el unitario no ve.
-
----
-
-## 3. Cada músico y el ensayo general
-
-Una orquesta antes del concierto. Cada músico ensaya su parte por separado y verifica que la borda: eso es el
-unitario, rápido y preciso. Pero que cada uno toque bien por su cuenta no garantiza que el conjunto suene, y
-por eso existe el ensayo general, con todos en la sala real. Ahí aparece lo que el ensayo individual nunca
-revela: que dos instrumentos desafinan entre sí, que una entrada llega tarde. Eso es la integración.
+La base in-memory es un simulador de conducción. Para practicar la lógica —cuándo cambias de marcha, por
+dónde va el trazado— es fantástico: barato, instantáneo, sin consecuencias. Pero no es la carretera: no
+tiene el agarre del asfalto mojado ni cómo responde tu coche al frenar de verdad. Imita el «guardar y leer
+objetos con EF Core» lo justo para practicar la lógica de tu repositorio, pero no es un motor relacional.
 
 ---
 
-## 4. Lo que solo caza la integración
+## 3. Cómo se usa
 
-Cuatro clases de bug que el doble no puede ver, porque ni toca la base de datos:
+Necesitas el paquete `Microsoft.EntityFrameworkCore.InMemory` y configuras el contexto con
+`UseInMemoryDatabase(nombreBd)`. El nombre es la clave de la independencia: un `Guid` único por test, para
+que cada uno tenga su base aislada (M1.3). Dos contextos con el mismo nombre comparten el almacén, y eso es
+lo que te permite guardar con uno y leer con otro. Mira
+[`tests/.../RepositorioPedidosInMemoryTests.cs`](tests/VentasShop.TestsIntegracion/RepositorioPedidosInMemoryTests.cs).
 
-- **Mapeo** entidad ↔ tabla: que una propiedad acabe en la columna correcta, con el tipo correcto.
-- **Traducción LINQ → SQL**: una consulta que compila en memoria puede no traducirse, o dar otro resultado.
-- **Restricciones**: un `NOT NULL`, una clave única, una foránea. Tu código cree que guardó; la BD lo rechaza.
-- **Transacciones y concurrencia**: que un rollback deshaga de verdad, que dos operaciones no se pisen.
-
----
-
-## 5. La pirámide manda
-
-La regla es la de M1.2: muchos unitarios, pocos de integración. Los unitarios, para toda la lógica de negocio
-(la base ancha, rápidos y constantes). La integración, solo para las costuras con el mundo exterior que de
-verdad importan. Abusar de la integración «porque es más realista» te lleva al cono de helado: una suite lenta
-que nadie ejecuta.
+Un detalle que da bugs sutiles: lee en un contexto **nuevo**, no en el que usaste para guardar. Si lees del
+mismo, EF te devuelve el objeto de su caché de seguimiento sin tocar la «base de datos», y el test pasa
+aunque el guardado real estuviera mal. Y usa `Include(p => p.Lineas)` para traer las líneas, que `Find` por
+sí solo no carga.
 
 ---
 
-## 6. El coste, y cómo no penalizar el ciclo
+## 4. Qué no comprueba (la letra pequeña)
 
-La integración es lenta. Tres medidas evitan que te frene:
+El provider in-memory no es un motor relacional, así que deja pasar cosas que tu base real no permitiría:
 
-1. **Proyectos separados**: `VentasShop.TestsUnitarios` y `VentasShop.TestsIntegracion` (ambos ya existen en
-   el repo). Ejecutas solo los rápidos mientras desarrollas.
-2. **Momentos distintos**: los unitarios a cada cambio; los de integración antes de un commit importante y en
-   la integración continua (M7).
-3. **Comparte lo caro**: levanta la base de datos una vez por clase, no una por test (fixtures, M6.3).
+- **El índice único** — guarda dos productos con el mismo código sin rechistar.
+- **La integridad referencial de una clave foránea** y los `CHECK`.
+- **La traducción a SQL** — ejecuta las consultas en memoria, así que una que el motor real rechazaría aquí pasa.
+- **Las transacciones reales, los índices y los triggers.**
+
+Un matiz que importa: **desde EF Core 6, el in-memory sí valida las propiedades obligatorias (`NOT NULL`)** y
+lanza si dejas en nulo algo requerido. Lo que no comprueba es el resto de esta lista.
 
 ---
 
-## 7. El reparto de VentasShop
+## 5. El ejemplo que lo demuestra
 
-A **unitario** va toda la lógica: `CalculadoraDescuentos`, las invariantes de `Cantidad` y `Dinero`, las
-transiciones del `Pedido`, el `ServicioPedidos` con dobles. A **integración** va poco y bien elegido: que el
-`RepositorioPedidos` real guarda un pedido con sus líneas y lo recupera idéntico, una consulta «pedidos de un
-cliente» contra el motor, y una restricción real (que no se pueda guardar un pedido sin cliente). El descuento
-se queda en unitario: es lógica pura, no cruza la frontera de la base de datos.
+VentasShop estrena un campo `Producto.Codigo` con **índice único** en `ContextoVentasShop`
+(`HasIndex(p => p.Codigo).IsUnique()`). El test
+`InMemory_NoRefuerzaElIndiceUnico_GuardaDosProductosConElMismoCodigo` añade dos productos con el mismo
+código y comprueba que `SaveChanges` **no lanza** en in-memory: `Record.Exception(...)` devuelve `null`. Eso
+documenta la limitación. Contra SQL Server real (M6.3), ese mismo `SaveChanges` lanzaría `DbUpdateException`.
+El simulador y la carretera, en una pantalla.
+
+---
+
+## 6. Cuándo sí usarlo
+
+El in-memory no es basura: tiene su nicho. Sirve cuando pruebas la lógica de un repositorio o una consulta
+donde las restricciones no son lo que verificas, quieres tests rápidos sin Docker, y eres consciente de que
+no validas el comportamiento relacional. Si empiezas de cero, plantéate **SQLite en modo in-memory** como
+punto medio: es un motor relacional de verdad (respeta restricciones, traduce a SQL) y sigue siendo rápido y
+sin Docker. Para fidelidad total a tu motor, Testcontainers (M6.3).
+
+---
+
+## 7. Errores comunes
+
+**Confiar en el in-memory para validar restricciones** (es justo lo que no hace). **Leer del mismo contexto
+con el que escribiste** (te devuelve la caché de EF). **Compartir sin querer el nombre de la base** entre
+tests (se pisan según el orden). Y **creer que tienes tests de tu capa de datos** cuando solo tienes tests
+de su lógica, no de su comportamiento real contra el motor.
 
 ---
 
 ## 8. Lo que te llevas
 
-El laboratorio ([`material/labs/M6.1-clasificar-unit-integracion.md`](material/labs/M6.1-clasificar-unit-integracion.md))
-es de **criterio**: clasificas cada parte de VentasShop como unitario o integración con una sola pregunta,
-«¿cruza la frontera de la base de datos?». La tarjeta
-([`material/tarjetas/M6.1-unit-vs-integracion.md`](material/tarjetas/M6.1-unit-vs-integracion.md)) lo resume.
+El laboratorio ([`material/labs/M6.2-in-memory-y-su-limite.md`](material/labs/M6.2-in-memory-y-su-limite.md))
+tiene dos partes: la cómoda (CRUD y consultas del repositorio con in-memory) y la reveladora (ver que la
+unicidad **no** salta). La tarjeta ([`material/tarjetas/M6.2-ef-in-memory.md`](material/tarjetas/M6.2-ef-in-memory.md))
+lo resume.
 
-Con ese reparto claro, en M6.2 escribes el primer test contra base de datos con el provider **en memoria** de
-EF Core: el más rápido y el más tentador. Verás cómo se usa y en qué te engaña sobre las restricciones, antes
-de pasar a bases de datos reales efímeras con Testcontainers (6.3) y al testeo de repositorios (6.4).
+En M6.3 nos bajamos del simulador y nos subimos a la carretera: una base de datos **real** (tu mismo motor,
+SQL Server) pero efímera, levantada en un contenedor Docker para el test con Testcontainers. Ahí el test de
+la unicidad sí cazará la restricción.
