@@ -1,20 +1,20 @@
-# VentasShop · M5.2 — Mocking con NSubstitute
+# VentasShop · M5.3 — Aserciones fluidas con AwesomeAssertions
 
-> Rama `module-05.2/mocking-nsubstitute`. Checkpoint del curso **TESTNET**. Aquí los dobles que en M5.1
-> escribías a mano se crean con **NSubstitute**: `Substitute.For` + `Returns` (configurar) + `Received`
-> (verificar). Se testea el `ServicioPedidos` de punta a punta. Assert nativo (las fluidas son M5.3).
+> Rama `module-05.3/aserciones-fluidas`. Checkpoint del curso **TESTNET**. El salto de `Assert.Equal` a
+> `Should().Be(...)` con **AwesomeAssertions**: la ganancia real es el mensaje cuando el test falla.
+> **Cierra el Módulo 5.**
 
 ## Qué hay en esta rama
 
-- **NSubstitute 5.3.0** en [`tests/.../VentasShop.TestsUnitarios.csproj`](tests/VentasShop.TestsUnitarios/VentasShop.TestsUnitarios.csproj).
-- **`tests/.../MockingNSubstituteTests.cs`** — 5 tests del `ServicioPedidos.Pagar` con dobles de NSubstitute:
-  caso feliz (estado + `Received` de `Guardar`/`Cobrar`), rechazo (BR-09: `DidNotReceive().Guardar`),
-  verificación de argumento (`Arg.Is<Pedido>(p => p.Estado == Pagado)`), pedido inexistente (no se cobra) y
-  pedido sin líneas (`PedidoSinLineasException`, BR-07).
-- **[`MANUAL.md`](MANUAL.md)** — los dos gestos del director, `Substitute.For`, `Returns`/`Arg`, `Received`/
-  `DidNotReceive`, estado vs interacción, permisivo vs estricto y los errores comunes.
-- **[`material/tarjetas/M5.2-nsubstitute.md`](material/tarjetas/M5.2-nsubstitute.md)** — tarjeta de 1 página + tabla Moq→NSubstitute.
-- **[`material/labs/M5.2-mockear-servicio-pedidos.md`](material/labs/M5.2-mockear-servicio-pedidos.md)** — lab: testear el servicio en sus 3 casos.
+- **AwesomeAssertions 9.4.0** en [`tests/.../VentasShop.TestsUnitarios.csproj`](tests/VentasShop.TestsUnitarios/VentasShop.TestsUnitarios.csproj) (`using AwesomeAssertions;`).
+- **`tests/.../AsercionesFluidasTests.cs`** — 5 tests fluidos: valor exacto (`tasa.Should().Be(0.10m)`),
+  colecciones (`HaveCount`/`Contain`/`AllSatisfy` sobre las líneas), `BeEquivalentTo` con `Excluding` de los
+  Id autogenerados, excepción fluida (`Invoking(...).Should().Throw<PedidoSinLineasException>().WithMessage("*sin líneas*")`)
+  y `.Because()` sobre el estado del pedido pagado.
+- **[`MANUAL.md`](MANUAL.md)** — el análisis de sangre, el mensaje de fallo, el repertorio, `BeEquivalentTo`,
+  excepciones fluidas, `.Because()`, por qué AwesomeAssertions y los errores comunes.
+- **[`material/tarjetas/M5.3-awesomeassertions.md`](material/tarjetas/M5.3-awesomeassertions.md)** — tarjeta de 1 página.
+- **[`material/labs/M5.3-aserciones-fluidas.md`](material/labs/M5.3-aserciones-fluidas.md)** — lab: reescribir a fluidas y comparar mensajes de fallo.
 
 ## Cómo se compila y se ejecuta
 
@@ -23,33 +23,34 @@ dotnet build VentasShop.slnx
 dotnet test  tests/VentasShop.TestsUnitarios
 ```
 
-Los **unitarios** salen en verde (68/68). `MockingNSubstituteTests.cs` añade 5 tests; el código de
+Los **unitarios** salen en verde (73/73). `AsercionesFluidasTests.cs` añade 5 tests; el código de
 producción no cambia.
 
-## Los dos gestos (lo que tienes que llevarte)
+## Lo que tienes que llevarte
 
-- **Configurar (stub):** `repositorio.ObtenerPorId(id).Returns(pedido)` · `pasarela.Cobrar(Arg.Any<Dinero>(), Arg.Any<string>()).Returns(new ResultadoPago(true))`.
-- **Verificar (mock):** `repositorio.Received(1).Guardar(pedido)` · `repositorio.DidNotReceive().Guardar(Arg.Any<Pedido>())`.
-- **Argumento:** `repositorio.Received(1).Guardar(Arg.Is<Pedido>(p => p.Estado == EstadoPedido.Pagado))`.
+- **El valor exacto:** `tasa.Should().Be(0.10m)`, no `BeGreaterThan(0)`.
+- **Colecciones:** `pedido.Lineas.Should().AllSatisfy(l => l.Subtotal.Importe.Should().BePositive())`.
+- **Objeto entero:** `real.Should().BeEquivalentTo(esperado, opc => opc.Excluding(m => m.Name == "Id"))`.
+- **Excepción + mensaje:** `pedido.Invoking(p => p.Pagar()).Should().Throw<...>().WithMessage("*sin líneas*")`.
 
-## De M5.1 a M5.2
+## El detalle de `BeEquivalentTo` con VentasShop
 
-En M5.1 los dobles estaban escritos a mano en `tests/.../Dobles/` (sin librería). Aquí se crean con una
-línea de NSubstitute. Compara los dos tests del caso feliz —`DoblesArtesanalesTests` y
-`MockingNSubstituteTests`— y verás el andamiaje que la librería te quita.
+El `Pedido`, sus `LineaPedido` y el `Cliente` llevan un `Id` (`Guid.NewGuid()`) por instancia. Comparar dos
+pedidos construidos por separado **fallaría** por esos Id. Por eso el test los excluye con
+`Excluding(m => m.Name == "Id")` — justo el aviso de «abusar de `BeEquivalentTo`» del MANUAL, hecho código.
 
-## Permisivo por defecto
+## Por qué AwesomeAssertions
 
-NSubstitute es *loose*: un método sin configurar devuelve el valor por defecto y no falla. Cómodo, pero
-ojo con el `NullReferenceException` confuso si tu código esperaba algo que no configuraste. Moq tenía un
-modo estricto; la tabla del MANUAL/tarjeta traduce Moq→NSubstitute casi línea a línea.
+FluentAssertions v8 (enero 2025) pasó a licencia de pago. AwesomeAssertions es el fork libre de la v7, con
+API idéntico: el namespace es `AwesomeAssertions`, y todo lo demás es igual. Shouldly es la otra alternativa
+gratuita; los conceptos se transfieren.
 
 ## Dónde estás en el curso
 
-… → `module-05.1/test-doubles` → **`module-05.2/mocking-nsubstitute`** ← estás aquí → `module-05.3/aserciones-fluidas` → …
+… → `module-05.2/mocking-nsubstitute` → **`module-05.3/aserciones-fluidas`** ← estás aquí (cierra el Módulo 5) → `module-06.1/...` → …
 
 ## Notas
 
 - Código y material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Assert nativo para el estado; las aserciones fluidas de AwesomeAssertions llegan en M5.3.
-- `Throws` de NSubstitute vive en `using NSubstitute.ExceptionExtensions;`.
+- Cierra el Módulo 5 (dobles + NSubstitute + aserciones fluidas). El Módulo 6 es integración con piezas reales.
+- `Invoking` es API válida; la forma alternativa es `Action acto = () => pedido.Pagar(); acto.Should().Throw<...>()`.

@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="9.4.0" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit.v3.mtp-v2" Version="3.2.2" />
     <!-- M2.3: cobertura sobre la plataforma de testing nueva (MTP). Gratuita y oficial.

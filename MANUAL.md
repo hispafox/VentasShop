@@ -1,92 +1,88 @@
-# Manual del alumno — M5.2 · Mocking con NSubstitute
+# Manual del alumno — M5.3 · Aserciones fluidas con AwesomeAssertions
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: cómo se crean y se manejan
-los dobles que decidiste en M5.1, y por qué NSubstitute reduce a dos gestos todo lo que parecía complicado.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué casi todos los equipos
+acaban dando el salto de `Assert.Equal` a `Should().Be(...)`, y por qué la razón de fondo no es la estética.
 
-Tiempo de lectura: ~12 min. Submódulo M5.2 (Mocking, Aislamiento y Aserciones Fluidas).
+Tiempo de lectura: ~12 min. Submódulo M5.3. **Cierra el Módulo 5.**
 
 ---
 
 ## 1. La idea en una frase
 
-Con un doble solo haces dos cosas: le das el guion antes de actuar (qué debe responder) y revisas la toma
-después (cómo se le llamó). En NSubstitute eso es `Returns` y `Received`. Lo demás son variantes.
+Una aserción fluida no solo se lee mejor: cuando falla, te cuenta qué esperaba y qué obtuvo con detalle. Y
+ese mensaje, multiplicado por cada fallo de la vida del proyecto, es lo que de verdad acelera el diagnóstico.
 
 ---
 
-## 2. De los dobles a mano (M5.1) a la librería
+## 2. El análisis de sangre
 
-En M5.1 escribiste los dobles a mano para verlos por dentro: un `RelojFijo`, un repositorio en memoria,
-una pasarela falsa. Funcionaba, pero era trabajo. NSubstitute hace ese montaje por ti: `Substitute.For<T>()`
-te da un doble de cualquier interfaz en una línea. El mismo `ServicioPedidos`, ahora con menos andamiaje.
-
----
-
-## 3. Los dos gestos del director
-
-Piensa en un director de cine con su especialista. Antes de rodar le da el guion ("cuando te pidan cobrar,
-di que falló"); después de rodar revisa la toma ("¿hiciste el salto?, ¿una vez?"). Configurar es `Returns`;
-verificar es `Received`. Si tienes claros los dos, la librería entera encaja.
+Imagina dos análisis. El primero dice "anormal". El segundo, "colesterol 240; lo normal está por debajo de
+200". Los dos detectan el problema; solo el segundo te da el diagnóstico en la misma línea. `Assert.True(...)`
+al fallar dice "esperaba True, obtuve False" — el "anormal". La aserción fluida te da el número.
 
 ---
 
-## 4. Crear el doble
+## 3. La diferencia real: el mensaje de fallo
 
-`Substitute.For<IRepositorioPedidos>()` te da un objeto que implementa la interfaz y, de fábrica, no hace
-nada: cada método devuelve el valor por defecto. Doblamos **interfaces**, no clases concretas — por eso las
-dependencias del `ServicioPedidos` viven detrás de `IRepositorioPedidos`, `IPasarelaPago`, `IReloj`.
-
----
-
-## 5. El guion: `Returns` (stub)
-
-`repositorio.ObtenerPorId(idPedido).Returns(pedido)` le dice al método qué devolver. Cuando el argumento no
-importa, usas `Arg.Any<Dinero>()`; cuando quieres una condición, `Arg.Is<Dinero>(m => m.Importe > 0)`. Para
-el caso del rechazo (BR-09), configuras `pasarela.Cobrar(...).Returns(new ResultadoPago(false))`. Y si
-necesitas que un método lance, está `.Throws(...)` (en `NSubstitute.ExceptionExtensions`).
+Mira [`tests/.../AsercionesFluidasTests.cs`](tests/VentasShop.TestsUnitarios/AsercionesFluidasTests.cs).
+`pedido.Lineas.Should().HaveCount(3)`, cuando falla, dice: "Expected pedido.Lineas to contain 3 item(s),
+but found 2." Te nombra qué colección, cuántos esperaba y cuántos había, sin escribir nada extra. Ahí está
+la ganancia: no en cómo se lee al escribir, sino en la calidad del diagnóstico al fallar.
 
 ---
 
-## 6. Revisar la toma: `Received` (mock/spy)
+## 4. El repertorio
 
-`repositorio.Received(1).Guardar(pedido)` comprueba que se guardó una vez; `DidNotReceive()` comprueba que
-**no** se llamó. Y con los matchers verificas el argumento:
-`repositorio.Received(1).Guardar(Arg.Is<Pedido>(p => p.Estado == EstadoPedido.Pagado))` confirma que se
-guardó el pedido *ya pagado*, no en cualquier estado. Todo esto va en el Assert, después del Act.
-
----
-
-## 7. El test del rechazo y la regla del estado
-
-Mira [`tests/.../MockingNSubstituteTests.cs`](tests/VentasShop.TestsUnitarios/MockingNSubstituteTests.cs).
-En el caso feliz compruebas el **estado** (`pedido.Estado == Pagado`) y de paso la interacción. En el del
-rechazo, como `Pagar` no devuelve nada, la prueba *tiene* que ser de interacción (`DidNotReceive`). Regla:
-prefiere el estado siempre que puedas; reserva `Received` para cuando no hay estado que mirar.
+Siempre empieza con `valor.Should()` y encadenas: `Be(0.10m)`, `BeGreaterThan(0)`, `NotBeNull()`,
+`StartWith("Cliente")`, `HaveCount(3)`, `NotBeEmpty()`. Las de colección son donde el nativo se queda corto:
+`Contain(l => l.Cantidad.Valor > 1)` y `AllSatisfy(l => l.Subtotal.Importe.Should().BePositive())` te ahorran
+un bucle en el test (lógica en el test, antipatrón de M3.1) y, al fallar, te dicen qué elemento no cumplía.
 
 ---
 
-## 8. Permisivo, no estricto
+## 5. La joya: `BeEquivalentTo`
 
-NSubstitute es permisivo: un método sin configurar devuelve el valor por defecto y no se queja. Eso tiene
-una trampa (el error nº 3 de abajo): si tu código espera algo y recibe `null`, revienta dentro del SUT con
-un `NullReferenceException` confuso. La ventaja es que no te obliga a configurar lo que no te importa, que
-es lo que hacía frágiles a los tests estrictos de Moq. Si vienes de Moq, la tabla del README te traduce todo.
-
----
-
-## 9. Errores comunes
-
-Cuatro descuidos: **verificar de más** (un `Received` por cada llamada te acopla a la implementación),
-**verificar interacción donde bastaba el estado**, **olvidar que es permisivo** (el `null` que revienta el
-SUT) y, en async, **no configurar bien los métodos `Task`**.
+Comparar un objeto entero campo por campo es tedioso y frágil. `real.Should().BeEquivalentTo(esperado)` lo
+hace en una línea, recorriendo todo el grafo, y al fallar te dice qué propiedad de qué objeto difería. Un
+detalle de VentasShop: el `Pedido`, sus líneas y el cliente llevan un `Id` que se autogenera (`Guid`), así
+que si construyes el esperado y el real por separado, esos Id no coinciden. Se excluyen:
+`opc => opc.Excluding(m => m.Name == "Id")`. Brilla en integración (M6); para una sola propiedad, comprueba
+esa propiedad.
 
 ---
 
-## 10. Lo que te llevas
+## 6. Excepciones fluidas y `.Because()`
 
-El laboratorio ([`material/labs/M5.2-mockear-servicio-pedidos.md`](material/labs/M5.2-mockear-servicio-pedidos.md))
-te hace testear el `ServicioPedidos` en sus tres casos: feliz, rechazo y pedido sin líneas. La tarjeta
-([`material/tarjetas/M5.2-nsubstitute.md`](material/tarjetas/M5.2-nsubstitute.md)) resume la sintaxis.
+La versión fluida de `Assert.Throws` (M4.3) encadena el mensaje:
+`pedido.Invoking(p => p.Pagar()).Should().Throw<PedidoSinLineasException>().WithMessage("*sin líneas*")`. El
+`*` comprueba el fragmento, no el texto exacto. Y con `.Because()` añades el motivo de una aserción, que
+aparece en el fallo: `pedido.Estado.Should().Be(EstadoPedido.Pagado, "porque la pasarela aceptó el pago")`.
 
-Con esto ya aíslas tu código y verificas cómo se comporta. Queda la pieza que hace que los tests se lean
-mejor y que, al fallar, te digan más: las aserciones fluidas de AwesomeAssertions. Es M5.3.
+---
+
+## 7. Por qué AwesomeAssertions
+
+FluentAssertions, la librería clásica, pasó a licencia de pago en su versión 8 (enero de 2025).
+**AwesomeAssertions** es un fork comunitario y gratuito de la última versión libre, con un API idéntico:
+todo lo de aquí vale igual. Solo cambia el paquete NuGet y el namespace (`using AwesomeAssertions;`). Si usas
+FluentAssertions o Shouldly, los conceptos se transfieren.
+
+---
+
+## 8. Errores comunes
+
+**Aserciones débiles más bonitas** (`BeGreaterThan(0)` comprueba casi nada → usa el valor exacto). **Abusar
+de `BeEquivalentTo`** (comparar el objeto entero cuando el test va de una propiedad). **Encadenar de más**
+(si no cabe de un vistazo, pártelo). **Mezclar estilos** en el proyecto (elige uno y sé consistente).
+
+---
+
+## 9. Lo que te llevas (y cierre del Módulo 5)
+
+El laboratorio ([`material/labs/M5.3-aserciones-fluidas.md`](material/labs/M5.3-aserciones-fluidas.md)) te
+hace reescribir aserciones de M4/M5.2 a fluidas y **provocar fallos** para comparar los mensajes. La tarjeta
+([`material/tarjetas/M5.3-awesomeassertions.md`](material/tarjetas/M5.3-awesomeassertions.md)) lo resume.
+
+Con esto cierras el Módulo 5: testeas código con dependencias, aislándolo con dobles (M5.1), manejándolos
+con NSubstitute (M5.2) y con aserciones que, al fallar, te cuentan qué pasó. Lo que falta es comprobar que
+las piezas encajan de verdad contra una base de datos real: los tests de integración, el Módulo 6.
