@@ -1,66 +1,48 @@
-# VentasShop · M7.2 — Falsos positivos y tests frágiles
+# VentasShop · M7.3 — Buenas prácticas consolidadas
 
-> Rama `module-07.2/falsos-positivos`. Checkpoint del curso **TESTNET**. Un test solo vale si su
-> resultado significa algo. Aquí se ven las dos formas de verde que no protege —aserciones débiles y
-> tests inestables— y la herramienta que las caza: **mutation testing con Stryker.NET sobre MTP**.
+> Rama `module-07.3/buenas-practicas`. Checkpoint del curso **TESTNET**. Cierra el Módulo 7. El test es
+> código de producción: una suite se cuida como un jardín o se convierte en una jungla. Aquí se ven los
+> hábitos que la mantienen sana y un lab de «suite-jungla → suite-jardín».
 
 ## Qué hay en esta rama
 
-- **`tests/.../AsercionesDebilesTests.cs`** — 3 aserciones débiles (anti-ejemplos a propósito: pasan en
-  verde pero no comprueban el valor) + 1 fuerte de contraste (`Assert.Equal(0.15m, tasa)`). El mutante que
-  pone el tramo de volumen a cero (`0.10m → 0.0m`) **sobrevive** a las débiles y **muere** con la fuerte.
-- **`tests/.../RelojTraidorTests.cs`** — el flaky por dependencia del reloj: un test determinista con
-  `RelojFijo` (IReloj, M5.1) que fija «ahora», y el anti-ejemplo frágil con `DateTimeOffset.Now` marcado
-  `[Fact(Skip=...)]` para no pudrir la suite (el lab pide reproducirlo y curarlo).
-- **`tests/.../stryker-config.json`** — config de Stryker (muta `CalculadoraDescuentos` y `Cupon`, umbrales).
+- **`tests/.../BuenasPracticasTests.cs`** — la suite-**jardín** (el «después»): modela los hábitos sobre VentasShop.
+  - **Un assert conceptual por test**: `Pagar_DePedidoConfirmado_DejaElPedidoEnPagado` y `CalcularTotal_DeDosUnidadesA50_Devuelve100` (un comportamiento, una razón para el rojo).
+  - **Simplicidad**: `CalcularTasaDescuento_...` con `[Theory]` en vez de un `for` dentro del test; los números con significado, a la vista.
+  - **Independencia**: cada test fabrica sus datos con el `PedidoBuilder` (M3.3), sin estado compartido.
+- **[`material/labs/M7.3-jungla-a-jardin.md`](material/labs/M7.3-jungla-a-jardin.md)** — el lab con el «antes» (la suite-jungla) y su transformación.
+- **[`material/tarjetas/M7.3-buenas-practicas.md`](material/tarjetas/M7.3-buenas-practicas.md)** — la chuleta de hábitos.
 
-## Mutation testing con Stryker.NET (sobre MTP, NO Coverlet)
+## Los hábitos (la jardinería)
 
-```bash
-dotnet tool install -g dotnet-stryker
-cd tests/VentasShop.TestsUnitarios
-dotnet stryker --test-runner mtp
-# informe en StrykerOutput/.../reports/mutation-report.html
-```
-
-**Por qué `--test-runner mtp`** (a junio de 2026): el proyecto va sobre el runner moderno (MTP), sin la
-plataforma de pruebas antigua (VSTest). Stryker, por defecto, busca los tests por la vía antigua y no los
-encontraría; la opción `--test-runner mtp` (en *preview* desde Stryker 4.13) le dice que use el runner del
-curso. Es el mismo aviso de plataforma que con la cobertura en M7.1.
-
-**Resultado verificado en esta rama:** mutation score **87,5%** sobre las dos clases (7 mutantes matados,
-**1 superviviente**) — y ese superviviente es justo el «inspector ciego»: el bug que las aserciones débiles
-no cazan. Refuerza la aserción y el mutante muere.
-
-> Stryker es **lento** (ejecuta la suite por cada mutante): una pasada de vez en cuando sobre la lógica
-> crítica, o un pipeline nocturno. No va en cada commit como la cobertura.
-
-## Tests inestables (flaky)
-
-La causa más común es **el tiempo**. `Cupon.EsValidoEn(ahora)` (BR-06) depende de la fecha: un test que le
-pasa `DateTimeOffset.Now` pasa hoy y fallará tras la caducidad («funciona en junio, peta en julio»). La cura
-es fijar «ahora» con `RelojFijo` (IReloj) — el test se vuelve determinista. Ver `RelojTraidorTests`.
+- **El test es código de producción**: lo lees más veces de las que lo escribes; se mantiene y se refactoriza.
+- **Un assert conceptual por test** = un comportamiento, no una sola línea `Assert`. La primera aserción que falla corta el test.
+- **Independencia y determinismo**: nada de estado compartido, ni orden asumido, ni reloj/red/fichero (FIRST de M1.3, flaky de M7.2).
+- **Simplicidad**: ni `if`/`for` en el cuerpo del test (`[Theory]` de M4.2); el número «mágico» con significado en un test es **bueno**.
+- **Refactor con DAMP, no DRY**: en los tests se tolera algo de duplicación si cada test se entiende solo; se quita el ruido con un `PedidoBuilder`, se conserva la historia.
+- **Borrar tests sin culpa**: el de una funcionalidad muerta es mala hierba; Git se acuerda.
+- **Tests como gate de CI/CD**: el seto que bloquea lo que rompe (el montaje real es M8.2).
 
 ## Cómo se compila y se ejecuta
 
 ```bash
 dotnet build VentasShop.slnx
-dotnet test  tests/VentasShop.TestsUnitarios     # 78 verdes + 1 skip (el frágil a propósito)
+dotnet test  tests/VentasShop.TestsUnitarios     # 84 verdes + 1 skip (el frágil de M7.2)
 dotnet test  tests/VentasShop.TestsIntegracion   # 11/11
 ```
 
-## Nota sobre los anti-ejemplos
+## Nota sobre el ejemplo del «assert conceptual»
 
-`AsercionesDebilesTests` y el test `Skip` de `RelojTraidorTests` están MAL hechos **a propósito**: son el
-material del submódulo, no un modelo a copiar. (El capítulo muestra también `Assert.NotNull(decimal)` como
-débil; aquí se usa `<= 0.15m` en su lugar para no chocar con el analizador xUnit2002 sobre tipos por valor —
-misma lección, variante ejecutable.)
+El capítulo imagina un anti-ejemplo `FuncionaTodo` que comprueba estado, total, líneas y **fecha de pago**.
+En el repo, `Pedido.Pagar()` NO registra fecha (solo cambia `Estado`), así que el ejemplo se alinea a
+comportamientos **reales**: estado, total, líneas y cliente. La lección (un comportamiento por test) es la
+misma. El lab usa esos comportamientos reales.
 
 ## Dónde estás en el curso
 
-… → `module-07.1/analisis-cobertura` → **`module-07.2/falsos-positivos`** ← estás aquí → `module-07.3/...` → …
+… → `module-07.2/falsos-positivos` → **`module-07.3/buenas-practicas`** ← estás aquí (cierra M7) → `module-08.1/...` → …
 
 ## Notas
 
 - Material **en castellano**. Proyecto **neutro**: sin nombres de cliente.
-- Mutation testing sobre **MTP** (`dotnet stryker --test-runner mtp`), no Coverlet ni Docker.
+- No introduce tooling nuevo: consolida hábitos sobre lo ya visto (xUnit, `[Theory]`, builders, aserciones fluidas).
