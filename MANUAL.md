@@ -1,107 +1,115 @@
-# Manual del alumno — M6.3 · Testing con SQLite in-memory
+# Manual del alumno — M6.4 · Testing de repositorios y acceso a datos
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué SQLite in-memory cierra
-la espina que dejó el provider in-memory de M6.2, cuál es su clave técnica (que despista a todo el mundo la
-primera vez) y dónde está su límite honesto.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué el patrón Repository
+hace tu código testeable, cómo se prueba el CRUD completo contra una base de verdad y cuál es el problema
+más espinoso de los tests de integración — que no se pisen entre ellos.
 
-Tiempo de lectura: ~12 min. Submódulo M6.3 (Tests de Integración con un motor relacional de verdad).
+Tiempo de lectura: ~12 min. Submódulo M6.4 (cierra el Módulo 6).
 
 ---
 
 ## 1. La idea en una frase
 
-SQLite en modo in-memory es un motor relacional **de verdad** ejecutándose en RAM: respeta índices únicos,
-claves foráneas y transacciones, y no necesita instalar ni levantar nada. La fidelidad relacional que el
-provider in-memory no daba, sin salir de un test rápido y sin instalar ni levantar nada.
+El patrón Repository pone un mostrador delante de la base de datos: en un test unitario lo doblas con un
+mock (M5), en uno de integración lo pruebas de verdad contra la base (SQLite in-memory, M6.3), y en los dos
+casos tu lógica de negocio se queda limpia, sin saber nada de SQL ni de EF Core.
 
 ---
 
-## 2. Dos cosas que se llaman «in-memory» (y no son lo mismo)
+## 2. El mostrador del almacén
 
-En M6.2 quedó una espina: el provider InMemory de EF Core dejaba pasar la unicidad de producto. Ojo al
-equívoco de nombres. El provider InMemory **no es una base de datos**: es un diccionario que imita a EF, y
-por eso no valida restricciones. SQLite in-memory es otra liga: el motor SQLite de verdad —el mismo que
-llevan el móvil, el navegador y media industria— ejecutándose en memoria en lugar de sobre un fichero. SQL
-real, restricciones reales, transacciones reales.
+Imagina un almacén grande. Sin mostrador, cada empleado entra, busca entre las estanterías y se lleva lo
+que encuentra como puede: un caos donde, si reorganizas el almacén, todos se pierden. Con mostrador, tú
+llegas y pides «el pedido 42»; el empleado lo busca por ti y te lo trae. No entras al almacén ni necesitas
+saber cómo está ordenado por dentro, y si mañana mueven las estanterías, a ti te da igual.
 
----
-
-## 3. El coche de verdad en el circuito de pruebas
-
-El provider in-memory era el simulador de conducción de M6.2: cómodo, pero no la carretera. SQLite in-memory
-es el siguiente escalón, un coche de verdad en el circuito de pruebas: motor real, físicas reales, y no
-tienes que traer el tuyo ni alquilar la pista, está listo en el momento. Su límite es que no es tu coche de
-producción exacto: para SQLite, ese «otra marca» es el dialecto.
+El repositorio es ese mostrador delante de tu base de datos. Y como es una interfaz, en un test unitario
+pones un mostrador de pega (un doble) y en uno de integración pruebas el mostrador real contra el almacén
+de verdad. El mismo mostrador, doblado o real según el nivel de test. Ese aislamiento entre tu lógica y el
+almacén es justo lo que la hace testeable.
 
 ---
 
-## 4. La clave técnica: la conexión que hay que mantener abierta
+## 3. El contraste que importa: `ObtenerPorId` vs `ObtenerConLineas`
 
-Es el detalle que más despista, y si no lo conoces te vuelve loco: **la base en memoria vive mientras la
-conexión esté abierta**. En cuanto se cierra, la base desaparece con todo dentro. EF Core, por defecto, abre
-y cierra la conexión en cada operación, lo que con SQLite in-memory significaría crear una base vacía,
-usarla un instante y tirarla.
+El repositorio de VentasShop tiene dos formas de leer un pedido, y la diferencia es una trampa clásica:
 
-El truco: abres tú la conexión y la mantienes viva durante todo el test. Fíjate en dos cosas:
+- `ObtenerPorId` usa `Find`: trae el pedido por su clave, pero **no** carga sus navegaciones. Las líneas
+  vendrán vacías.
+- `ObtenerConLineas` lleva `Include(p => p.Lineas)` (y el cliente): te trae el grafo cargado.
 
-- a `UseSqlite` le pasas el **objeto** `SqliteConnection` ya abierto, **no una cadena** de texto, para que
-  todos los contextos que la compartan vean la misma base;
-- `EnsureCreated` crea el esquema desde tu modelo, con todas sus restricciones e índices reales (incluido el
-  índice único del código de producto). **No `MigrateAsync`**: el repo no tiene migraciones.
-
-Mira [`tests/.../RepositorioPedidosSqliteTests.cs`](tests/VentasShop.TestsIntegracion/RepositorioPedidosSqliteTests.cs):
-el constructor abre la conexión y crea el esquema, `Dispose` la cierra, y como xUnit crea una instancia de la
-clase por test, cada uno recibe su base limpia y propia (independencia de M1.3 sin esfuerzo).
+Ese es justo el tipo de detalle que solo un test de integración real caza. Si lees por la vía sin `Include`
+y esperas las líneas, te las encuentras vacías; y un test con un doble nunca lo notaría, porque el doble te
+devuelve el pedido entero que tú mismo le diste. El test `ObtenerPorId_UsaFind_YNoCargaLasLineas` lo deja
+a la vista. Es la costura del M6.1 otra vez.
 
 ---
 
-## 5. El ejemplo que lo demuestra (la recompensa)
+## 4. El CRUD completo
 
-El test `Sqlite_RefuerzaElIndiceUnico_DosProductosConElMismoCodigoLanzan` añade dos productos con el mismo
-`Codigo` y, al guardar, **espera que salte**: `guardar.Should().Throw<DbUpdateException>()`. Y salta. Es
-justo el escenario que el provider in-memory de M6.2 dejaba pasar (`Record.Exception(...)` devolvía `null`).
-El índice único existe de verdad en la base, el segundo producto lo viola, y `SaveChanges` lanza. El
-simulador y el coche de verdad, en una sola suite. Y con la unicidad van también las claves foráneas, las
-transacciones reales y la traducción de tus consultas a SQL.
+Con el repositorio real y SQLite in-memory pruebas el ciclo entero, y cada operación es un test de
+integración. El estrella: guardar un pedido con sus líneas y recuperarlo. Lo guardas con `Agregar` y, para
+comprobar, **lees en un contexto nuevo** (no en el que usaste para guardar). Si leyeras del mismo, EF te
+devolvería el objeto de su caché de seguimiento sin tocar la base, y el test pasaría aunque el guardado
+real estuviera mal (el gotcha de 6.2). Recuperas con `ObtenerConLineas` para que vengan las líneas.
 
----
-
-## 6. El límite honesto
-
-SQLite es un motor relacional real, pero **no es tu motor de producción**. Si en producción usas SQL Server
-o PostgreSQL, hay diferencias de dialecto: algunos tipos de dato, ciertas funciones de SQL, el comportamiento
-exacto de la ordenación de cadenas. La mayoría de las veces no lo notas; de vez en cuando, una consulta que
-pasa en SQLite se comporta distinto contra tu motor real. SQLite te da casi toda la fidelidad relacional por
-casi ningún coste; para el poco donde el dialecto exacto importa, el juez es tu motor real, donde lo tengas.
+El resto del CRUD sigue el mismo patrón: una **actualización** (recuperar, cambiar el estado con
+`Confirmar`, `Guardar`, volver a recuperar y comprobar que persistió), un **borrado** (`Eliminar` y
+comprobar que ya no está), y una **consulta** por cliente (`ObtenerPorCliente`, comprobar que devuelve los
+correctos y solo esos). Como son lentos y reales, la regla del 6.1 manda: pocos y bien elegidos.
 
 ---
 
-## 7. La estrategia: cuándo cada uno
+## 5. La integridad referencial es de verdad (el borrado en cascada)
 
-De la pirámide (M1.2), dentro de la integración: **unitarios** para toda la lógica que no toca base de datos
-(la mayoría); **provider in-memory** para tests rápidos de la lógica de una consulta donde las restricciones
-no son lo que pruebas; **SQLite in-memory** para validar de verdad el comportamiento relacional sin instalar
-nada (tu caballo de batalla de integración); y, para lo poquísimo donde el dialecto exacto importa, tu motor
-real. No es «SQLite para todo», igual que no era «in-memory para todo».
-
----
-
-## 8. Errores comunes
-
-**Dejar que la conexión se cierre** (la base desaparece y aparecen «tablas que no existen»; mantenla abierta,
-pasa el objeto). **Creer que SQLite es tu motor de producción** (para el dialecto, tu motor real es el juez).
-**Compartir una conexión entre tests** (comparten base y se pisan; una conexión por test). **Olvidar
-`EnsureCreated`** (la base nace vacía y sin él no hay tablas).
+Al implementar el borrado apareció una lección que el provider in-memory te habría ocultado: SQLite, motor
+real, **exige la integridad referencial**. Borrar un pedido que tiene líneas, sin más, viola la clave
+foránea de las líneas. La solución correcta no es un truco de test, es modelar bien el dominio: el pedido
+es **dueño** de sus líneas, así que al borrarlo se borran ellas. Eso se configura una vez en el contexto
+(`OnDelete(DeleteBehavior.Cascade)`) y el motor se encarga. Contra el provider in-memory esto nunca habría
+saltado, y te habrías llevado un borrado a medias a producción.
 
 ---
 
-## 9. Lo que te llevas
+## 6. El problema espinoso: el aislamiento entre tests
 
-El laboratorio ([`material/labs/M6.3-el-contraste.md`](material/labs/M6.3-el-contraste.md)) es el contraste
-estrella: coge los tests de repositorio que escribiste con el provider in-memory en M6.2 y ejecútalos también
-contra SQLite, comparando. Los de lógica de consulta pasan en ambos; la unicidad solo se valida de verdad
-contra SQLite. La tarjeta ([`material/tarjetas/M6.3-sqlite-in-memory.md`](material/tarjetas/M6.3-sqlite-in-memory.md))
-lo resume.
+Esto es lo que separa una suite de integración que aguanta de una que se pudre: que cada test no se ensucie
+con los datos de los demás. Si compartes la misma base y un test deja un pedido, el siguiente que cuente
+«cuántos pedidos hay» ve la basura del primero y falla según el orden (M1.3, la independencia rota). Hay
+tres estrategias clásicas, de menos a más fina:
 
-En M6.4 cerramos la capa de datos con el patrón que la organiza y la hace testeable: el patrón Repository, el
-testing del CRUD completo y cómo manejar las transacciones en los tests.
+- **Recrear la base entre tests** — borrar y volver a crear el esquema. Simple y seguro, pero lento;
+  vale para suites pequeñas.
+- **Limpiar los datos (respawn)** — vaciar las tablas conservando la estructura. Más rápido; en .NET la
+  herramienta de referencia es **Respawn**, que borra respetando las relaciones. Buen equilibrio.
+- **Transacción con rollback** — cada test abre una transacción y la deshace al final. Rápida y elegante,
+  pero con letra pequeña: no pruebas bien el comportamiento transaccional de tu propio código si el test ya
+  está dentro de una transacción.
+
+En esta rama usamos la más simple posible: **una conexión SQLite in-memory por test**, que es una base
+nueva cada vez. La independencia sale sola. Lo importante no es cuál uses, sino tener **una** y aplicarla a
+todos los tests por igual.
+
+---
+
+## 7. Errores comunes
+
+**No tener estrategia de aislamiento** y rezar para que los tests no se pisen (funciona hasta que el runner
+cambia el orden). **Leer de la caché de EF**, del mismo contexto con el que escribiste (el test pasa aunque
+el guardado esté mal). **Testear el repositorio con el provider in-memory** creyendo que pruebas el acceso a
+datos (el `Include`, las consultas traducidas y las restricciones solo los valida un motor real). Y, de
+diseño, **meter lógica de negocio en el repositorio**: el mostrador trae y lleva, no decide reglas; eso va
+al dominio, donde lo testeas con unitarios rápidos.
+
+---
+
+## 8. Lo que te llevas
+
+El laboratorio ([`material/labs/M6.4-crud-y-aislamiento.md`](material/labs/M6.4-crud-y-aislamiento.md))
+cierra el módulo con el CRUD completo del repositorio y la estrategia de aislamiento en el fixture. La
+tarjeta ([`material/tarjetas/M6.4-repositorios.md`](material/tarjetas/M6.4-repositorios.md)) lo resume.
+
+Con esto cierras el Módulo 6: sabes testear las costuras con la base de datos —cuándo (6.1), con el
+provider in-memory y sus límites (6.2), con SQLite in-memory (6.3) y los repositorios con su aislamiento
+(6.4)—. Lo que viene en el Módulo 7 es aprender a *leer* lo que esa suite te dice: cobertura sin engañarte,
+tests que fallan al azar y los hábitos que la mantienen sana.

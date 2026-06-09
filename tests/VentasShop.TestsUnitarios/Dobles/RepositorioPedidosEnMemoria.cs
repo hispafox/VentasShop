@@ -23,6 +23,12 @@ public sealed class RepositorioPedidosEnMemoria : IRepositorioPedidos
 
     public Pedido? ObtenerPorId(Guid id) => _pedidos.GetValueOrDefault(id);
 
+    // En memoria el grafo del pedido (Lineas, Cliente) ya está cargado: no hay nada que "incluir".
+    public Pedido? ObtenerConLineas(Guid id) => _pedidos.GetValueOrDefault(id);
+
+    public IReadOnlyList<Pedido> ObtenerPorCliente(Guid clienteId) =>
+        _pedidos.Values.Where(p => p.Cliente.Id == clienteId).ToList();
+
     public void Agregar(Pedido pedido) => _pedidos[pedido.Id] = pedido;
 
     public void Guardar(Pedido pedido)
@@ -30,4 +36,6 @@ public sealed class RepositorioPedidosEnMemoria : IRepositorioPedidos
         _pedidos[pedido.Id] = pedido;
         VecesGuardado++;
     }
+
+    public void Eliminar(Pedido pedido) => _pedidos.Remove(pedido.Id);
 }

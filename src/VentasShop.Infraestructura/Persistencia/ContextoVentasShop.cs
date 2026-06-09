@@ -53,7 +53,9 @@ public class ContextoVentasShop : DbContext
             b.Property(p => p.Estado).HasConversion<string>();
             var navLineas = b.Metadata.FindNavigation(nameof(Pedido.Lineas))!;
             navLineas.SetPropertyAccessMode(PropertyAccessMode.Field);
-            b.HasMany(p => p.Lineas).WithOne().HasForeignKey("PedidoId");
+            // El pedido es dueño de sus líneas: al borrar el pedido, se borran sus líneas (cascade).
+            // SQLite (motor real, M6.3/M6.4) SÍ exige la integridad referencial; el provider in-memory no.
+            b.HasMany(p => p.Lineas).WithOne().HasForeignKey("PedidoId").OnDelete(DeleteBehavior.Cascade);
         });
 
         modelo.Entity<LineaPedido>(b =>
