@@ -1,75 +1,69 @@
-# Manual del alumno — M8.2 · Definir la estrategia
+# Manual del alumno — M8.3 · Taller aplicado (cierre del curso)
 
-Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué*: por qué a un sistema en
-producción no se le ponen tests a lo loco, sino con un plan por fases que se ejecuta sin pararlo.
+Esto **no** es el [`README.md`](README.md). El manual te cuenta el *porqué* del taller: aplicar todo lo
+aprendido sobre código real, de una sentada, y salir con la primera red puesta y un plan para seguir.
 
-Tiempo de lectura: ~11 min. Submódulo M8.2.
-
----
-
-## 1. El entusiasmo no es una estrategia
-
-En M8.1 diagnosticaste y abriste costuras. Pero sin plan, el equipo empieza con ganas, escribe tests a salto
-de mata y a las tres semanas la iniciativa muere con cuarenta tests dispersos. Y hay una restricción que lo
-cambia todo: **el sistema está en producción y no se puede parar.** No hay «paramos dos meses». Hay que
-mejorar la red de un sistema que funciona, sin apagarlo.
+Tiempo de lectura: ~10 min. Submódulo M8.3 — cierra el Módulo 8 y el curso.
 
 ---
 
-## 2. Reparar el barco sin dejar de navegar
+## 1. Entrenar no es jugar
 
-Un barco viejo que navega, cargado, sin puerto cerca: hay que repararlo en marcha. Aseguras primero lo que
-**te hundiría** (las vías de agua en la línea de flotación), luego los sistemas de maniobra (timón, bombas)
-y por último los acabados. Tabla a tabla, sin parar. Poner tests a un sistema en producción es esto.
-
----
-
-## 3. El plan por fases: F1, F2, F3
-
-**F1 — la línea de flotación.** Tests **unitarios** del núcleo de negocio crítico (lo que mueve dinero y
-reglas). Es la fase de mayor retorno: partiendo de cero, los primeros tests quitan los riesgos más gordos a
-coste bajísimo (la curva de M2.3, al revés). Aplica las costuras de M8.1 + dobles (M5).
-
-**F2 — los sistemas de maniobra.** Tests de **integración** (M6) en las fronteras: base de datos, servicios
-externos. Cubren fallos que el unitario no ve (una restricción de BD, un mapeo de EF mal puesto). Recuerda
-M6.3: hay fallos que solo caza el motor real (SQLite in-memory). Más lenta y cara; por eso va después.
-
-**F3 — el automatismo.** El **gate de CI** (aquí se monta; M7.3 solo lo nombró). Un servidor (GitHub Actions,
-Azure Pipelines) ejecuta la suite en cada cambio y, si algo falla, ese código no entra. Sobre esa base:
-cobertura en la misma pasada (`dotnet test -- --coverage`, Microsoft Code Coverage; **no Coverlet**), informe
-de ReportGenerator, o SonarQube. Y no todo va en cada push: unitarios siempre, integración en cada merge, lo
-pesado (mutation testing) de noche. Ver [`material/ci-ejemplo.yml`](material/ci-ejemplo.yml).
+Durante el curso has entrenado con VentasShop: AAA mil veces, leer una cobertura, no fiarte de un verde,
+abrir una costura. Entrenar es indispensable, pero el primer combate de verdad es otra cosa: el balón llega
+como llega y decides con lo interiorizado. El taller es ese primer partido: código real, y le aplicas en
+orden todo lo que sabes. No tienes que ganar la liga hoy; juegas un partido digno y sales con la lista de lo
+que toca seguir.
 
 ---
 
-## 4. Un objetivo de cobertura que no sea mentira
+## 2. El método, en 6 pasos
 
-**No** fijes un 80% global con fecha: o desmoraliza o invita a la trampa de M2.3. **Sí** un objetivo por
-**zona** (la lógica crítica de F1 alto, cerca del 80-90% de ramas; el andamiaje bajo) y **creciente**:
-cobertura sobre código nuevo (M7.1). La global sube sola, como consecuencia de trabajar bien.
+Sobre una clase (en el material, el legacy neutro `NotificadorPedidos` de M8.1; en la sala, una real):
 
----
-
-## 5. Confirmar el stack
-
-Antes del primer test, decide con el equipo qué herramientas: ¿se adopta el stack del curso (xUnit v3,
-NSubstitute, AwesomeAssertions, Microsoft Code Coverage/MTP) o se respeta el que el proyecto ya arrastra? Es
-una decisión de una vez, por escrito antes de empezar. Cambiarla con cincuenta tests hechos es de lo más caro
-que hay.
-
----
-
-## 6. Errores comunes
-
-Querer **parar el barco** (el negocio no lo acepta). **Empezar por F2/F3** (la pintura antes que el casco).
-El **objetivo global con fecha** (la trampa de M2.3 a escala de proyecto). Y **planificar para siempre**: el
-plan bueno cabe en una página y se empieza.
+1. **Triaje** (M8.1/M2.1): elige una clase que cruce riesgo alto y cambio frecuente.
+2. **Diagnóstico + refactor mínimo** (M8.1): ¿se deja testear? Si tiene los clavos, abre las costuras con
+   inyección de dependencias antes de un solo test.
+3. **Decidir qué testear** (M2.1) y los casos, incluido el borde (M2.2): aquí, envía de día, no de noche
+   (la frontera de las 22:00), registra siempre.
+4. **Escribir los tests** con todo el oficio: dobles de NSubstitute (M5.2), reloj fijo (M7.2), AAA (M3.1),
+   nombre que canta (M3.2), un comportamiento por test (M7.3). Mira
+   [`Legacy/NotificadorPedidosTallerTests.cs`](tests/VentasShop.TestsUnitarios/Legacy/NotificadorPedidosTallerTests.cs).
+5. **Medir** (M7.1/M7.2): `dotnet test -- --coverage` (Microsoft Code Coverage) + ReportGenerator; mira el
+   amarillo; y con Stryker, si un mutante del `< 22` sobrevive, el verde no vigilaba.
+6. **Gaps y próximos pasos** (M8.2): anota qué falta y cuál es la siguiente clase. Esa lista es el resultado
+   más valioso del taller.
 
 ---
 
-## 7. Lo que te llevas
+## 3. Lo que el taller NO es
 
-El laboratorio ([`material/labs/M8.2-hoja-de-ruta.md`](material/labs/M8.2-hoja-de-ruta.md)): conviertes el
-diagnóstico de M8.1 en una hoja de ruta F1-F2-F3 en una página, con objetivo por zona y un esbozo del gate.
-La entrega es el plan, no tests. En M8.3, el taller: bajamos al código real y escribimos los primeros tests
-aplicando todo el curso. Cierra el curso.
+No es **llenar el proyecto de tests** (son 10-15 sobre lo crítico). No es **dejar las clases perfectas**
+(costura mínima, tests que importan, y seguir). No es **un examen** (lo que se atasca es la lista de lo que
+seguirás puliendo). Aquí no se juzga; se practica con red.
+
+---
+
+## 4. Errores comunes
+
+Atascarse en la clase más fea por orgullo (anótala como «candidata a rediseño» y pasa). Saltarse el
+diagnóstico por las prisas (el orden hace que fluya). Escribir tests débiles por terminar (mejor tres de
+verdad que diez vacíos). E irse sin la lista (el puente con el lunes).
+
+---
+
+## 5. La idea que cierra el curso
+
+Empezamos con una idea y te la devuelvo con todo el peso detrás: **un test no demuestra que tu código
+funciona; demuestra que sigue haciendo lo que tú decidiste que hiciera.** No has venido a perseguir un
+porcentaje ni a coleccionar verdes: has venido a construir una red que avise, a ti y a tu equipo, el día que
+alguien cambie sin querer lo que el sistema tenía que hacer. Esa red ya sabes tejerla. Ahora ve a ponerla
+donde más importa.
+
+---
+
+## 6. Para seguir (que es lo mismo que practicar)
+
+Coge la siguiente clase crítica de tu proyecto y haz tú solo la secuencia completa, de triaje a lista de
+gaps ([`material/labs/M8.3-taller.md`](material/labs/M8.3-taller.md)). Si te sale, el curso ha hecho su
+trabajo. Si te atascas en algún paso, ya sabes a qué módulo volver — y eso también es haber aprendido.
